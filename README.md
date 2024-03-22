@@ -22,13 +22,13 @@ see <a href="#sec-use" class="quarto-xref">Section 3</a>.
 
 # Motivation
 
-The DIDD therapeutic services team in the east region is comprised of
-subject-matter experts in occupational and speech therapy. They keep
-excellent event records for people supported by the state so that they
-can ultimately tailor therapeutic services to meet individual needs.
-This is achieved through agency training and advocacy on behalf of
-supported people. However, retrieving actionable information from event
-data is time prohibitive due to their various consultative roles.
+The DIDD therapeutic services team in the east region keeps event
+records for people supported by the state so that they can ultimately
+tailor therapeutic services to meet individual needs. This is achieved
+through agency training and advocacy on behalf of supported people.
+However, retrieving actionable information from event data is time
+prohibitive with reporting methods in Excel and due to their various
+consultative roles.
 
 When considering alternative software for the team, `R` is a verified
 coding language available for state employees to use. These report
@@ -82,9 +82,9 @@ quarto render 1_falls.qmd --execute-params params/1_fall.yml
 
 # Future directions
 
-The project can be improved by making an offline R Shiny app interface
-so that the templates can be better used by the RTST team members
-directly to make their reports.
+The project can be improved by making an offline R Shiny app UI so that
+templates can be generated directly by RTST team members to make their
+reports.
 
 # Contact
 
