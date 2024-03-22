@@ -1,0 +1,192 @@
+---
+title: "RTST Agency Trend Report of Event Types"
+format: docx
+execute: 
+  echo: false
+  warning: false
+params:
+  cho_path: ""
+  asp_path: ""
+  ski_path: ""
+  falls_path: ""
+  census_path: ""
+  year: ""
+---
+
+```{r, setup}
+library(tidyverse)
+library(gt)
+library(readxl)
+
+source("scripts/process_data.R")
+
+
+# path1.1 <- "E:/2023 - CHOKING Event Tracking.xlsm"
+# path1.2 <- "E:/2023 - ASPIRATION - PNEUMONIA Event Tracking.xlsm"
+# path1.3 <- "E:/2023 - SKIN BREAKDOWN Event Tracking.xlsm"
+# path1.4 <- "E:/2023 - FALLS Event Tracking.xlsx"
+# path2 <- "E:/2023 Agency Census Listing.xlsx"
+#year = "2023"
+
+path1.1 <- params$cho_path
+path1.2 <- params$asp_path
+path1.3 <- params$ski_path
+path1.4 <- params$falls_path
+path2 <- params$census_path
+year = params$year
+
+
+
+```
+
+```{r, data import}
+
+##import datasets
+#log data import, choking
+
+choking_data <- import_event_data(
+  path_str = path1.1,
+  event_str = "choking_events"
+)
+
+#log data import, aspiration
+
+aspiration_data <- import_event_data(
+  path_str = path1.2,
+  event_str = "aspiration_events"
+)
+
+#log data falls
+
+fall_data <- import_event_data(
+  path_str = path1.4,
+  event_str = "fall_events"
+)
+
+#log data skin breakdown
+
+skin_data <- import_event_data(
+  path_str = path1.3,
+  event_str = "skin_events"
+)
+
+##census data import
+
+census_titles <- read_xlsx(path = ".titles/event_titles.xlsx",
+          sheet = "census",
+          skip = 0,
+          col_types = c("text", "text", "text", "text"))
+
+census <- read_xlsx(path = path2,
+                     sheet = 1,
+                     skip = 2,
+                     col_names = census_titles$clean,
+                     col_types = census_titles$type)
+
+census <- change_names(census)
+
+
+##prepare and clean the datasets
+#log data prep
+choking_event <- drop_na(choking_data |> select(event_type, agency, c_id))
+aspiration_event <- drop_na(aspiration_data |> select(event_type, agency, c_id))
+fall_event <- fall_data |> select(event_type, agency, c_id)
+skin_event <- drop_na(skin_data |> select(event_type, agency, c_id))
+
+event_data <- bind_rows(choking_event, aspiration_event, fall_event, skin_event)
+
+#collapse subagencies into the parent agency name
+event_data <- collapse_names(event_data)
+
+#census data prep
+regional_census <-  as.integer(round(max(census$tot, na.rm = TRUE)))
+
+key <- census_key_yearly(census)
+
+event_data_report <- match_key(event_data, key)
+
+event_data_report$region_census <- regional_census
+
+region_data <- unique(
+  event_data |> 
+    group_by(event_type) |> 
+    mutate(event_type_count = n()) |> 
+    select(event_type, event_type_count)
+  )
+
+
+```
+
+## `r params$year` Event Type Report
+
+Regional average census: `r regional_census`
+
+Event counts for the East Region (1915C without ICF service program):
+
+```{r, Region events}
+
+event_data_report2 <- left_join(event_data_report, region_data) |>
+  group_by(event_type) |>
+  mutate(event_type_perc = round(event_type_count/region_census*100, 2)) |>
+  ungroup() |>
+  group_by(event_type, agency) |>
+  mutate(agency_event_type_count = n(),
+         agency_event_type_perc = round(agency_event_type_count/cen_mean*100, 2)) |>
+  ungroup() |>
+  mutate(agency_rep = paste0(agency, " (", cen_mean, ")"))
+
+event_data_report2_region <- drop_na(unique(event_data_report2 |> 
+  select(event_type, event_type_count,
+                              event_type_perc)))
+
+event_data_report2_region |>
+  arrange(desc(event_type_count)) |>
+  gt(rowname_col = "event_type") |>
+  cols_label(
+    event_type_count = "Region #",
+    event_type_perc = "Region %"
+    )
+
+```
+
+Event counts by agency in the East Region (1915C without ICF service program):
+
+```{r, Events by agency}
+
+
+event_types <- event_data_report2 |> 
+  distinct(agency_rep) |> 
+    mutate(
+      event_type = list(unique(event_data_report2$event_type))
+    ) |> 
+  unnest(cols = c(event_type))
+
+event_data_report3 <- event_data_report2 |> 
+  distinct(agency_rep, 
+         event_type,
+         agency_event_type_count,
+         agency_event_type_perc) |> 
+  right_join(event_types,
+             by = join_by(agency_rep, event_type)) |> 
+  right_join(event_data_report2_region,
+             by = join_by(event_type)) |> 
+  replace_na(list(agency_event_type_count = 0, agency_event_type_perc = 0)) |> 
+  select(agency_rep, 
+         event_type,
+         event_type_count,
+         event_type_perc,
+         agency_event_type_count,
+         agency_event_type_perc)
+
+event_data_report3 |>
+  arrange(agency_rep) |>
+  group_by(agency_rep) |>
+  gt(rowname_col = "event_type") |>
+  cols_label(
+    event_type_count = "Region #",
+    event_type_perc = "Region %",
+    agency_event_type_count = "Agency #",
+    agency_event_type_perc = "Agency %"
+    )
+
+```
