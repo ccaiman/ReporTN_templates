@@ -10,7 +10,7 @@
 # Summary
 
 The East Region Therapeutic Services team uses flat files to generate
-reports to better serve people in the state supported by DIDD to live
+reports to better serve people in the state supported by DDA to live
 happy and full lives. A major aspect of reporting considers adverse
 events to identify where and for whom supportive services can be
 improved. This repo contains R Quarto markdown documents to generate
@@ -21,7 +21,7 @@ see <a href="#sec-function" class="quarto-xref">Section 4</a>.
 
 # Motivation
 
-The DIDD therapeutic services team in the east region keeps event
+The DDA therapeutic services team in the east region keeps event
 records for people supported by the state so that they can ultimately
 tailor therapeutic services to meet individual needs. This is achieved
 through agency training and advocacy on behalf of supported people.
