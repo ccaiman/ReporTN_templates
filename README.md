@@ -3,8 +3,7 @@
 
 **Author:** Charles C Barnes
 
-**Institution:** State of Tennessee - Department of Intellectual and
-Developmental Disabilities (DIDD)
+**Institution:** State of Tennessee - Department of Disability and Aging (DDA)
 
 **Role:** Volunteer Data Specialist
 
