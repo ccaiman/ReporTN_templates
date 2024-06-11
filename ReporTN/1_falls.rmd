@@ -1,0 +1,634 @@
+---
+title: "RTST Falls Trend Report"
+output: word_document
+params:
+  census_path: ""
+  current_falls_path: ""
+  previous_falls_path: ""
+  other_path: ""
+  year: ""
+  month: ""
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
+
+library(tidyverse)
+library(readxl)
+library(gt)
+library(reshape2)
+
+source("scripts/process_data.R")
+
+path1 <- params$current_falls_path
+path1.2 <- params$previous_falls_path
+path2 <- params$census_path
+path3 <- "NA"
+year = as.character(params$year)
+month = str_split(params$month, ", ", simplify = TRUE)[1,]
+```
+
+```{r report range, results='asis'}
+
+if (month[1] == "NA") {
+  
+  print(
+    str_glue("# {year} yearly fall events")
+    )
+  
+} else {
+  
+  quart <- tibble(month = month)
+  
+  quart$quart <- case_match(
+    quart$month,
+    "01" ~ "1",
+    "02" ~ "1",
+    "03" ~ "1",
+    "04" ~ "2",
+    "05" ~ "2",
+    "06" ~ "2",
+    "07" ~ "3",
+    "08" ~ "3",
+    "09" ~ "3",
+    "10" ~ "4",
+    "11" ~ "4",
+    "12" ~ "4",
+  )
+  
+  print(
+    str_glue("# {year} Q{quart$quart[1]} fall events")
+    )
+}
+
+```
+
+```{r data import}
+#log data import
+
+fall_data <- import_event_data(
+  path_str = path1, 
+  event_str = "fall_events"
+  )
+
+
+#other data to incorporate
+#this was necessary when event logs were delivered to the team on delay
+if (path3 != "NA") {
+  not_in_log <- read_excel(path3)
+
+not_in_log <- not_in_log |> 
+  select(event_id, `Event Date`, Person, `Age Category`, `Provider Responsible`,
+          `Event Location`, `Level of Injury`, Interventions) |> 
+  rename(c_id = event_id,
+         event_date = `Event Date`,
+         age_cat = `Age Category`,
+         agency = `Provider Responsible`,
+         med_result = Interventions,
+         env = `Event Location`,
+         ser_inj = `Level of Injury`)
+
+not_in_log$env <- case_match(not_in_log$env,
+             c("HOME - INSIDE", "HOME - OUTSIDE") ~ "Familiar",
+             c("COMMUNITY - SUPERVISED", "VEHICLE") ~ "Unfamiliar")
+
+not_in_log$ser_inj <- case_match(not_in_log$ser_inj,
+                             "SERIOUS INJURY" ~ "Yes",
+                             "MINOR INJURY" ~ "No")
+
+not_in_log <- not_in_log |> 
+  arrange(event_date)
+
+last_name <- list()
+first_name <- list()
+m_i <- list()
+
+for (i in 1:length(not_in_log$Person)) {
+  last_name[[i]] <- str_split(str_split(not_in_log$Person, " ")[[i]][1], ",| ")[[1]][1]
+  first_name[[i]] <- str_split(str_split(not_in_log$Person, ", ")[[i]][2], " ")[[1]][1]
+  m_i[[i]] <- str_split(str_split(not_in_log$Person, ", ")[[i]][2], " ")[[1]][2]
+}
+
+
+not_in_log$last_name <- melt(last_name)[,1]
+not_in_log$first_name <- melt(first_name)[,1]
+not_in_log$m_i <- melt(m_i)[,1]
+
+not_in_log <- not_in_log |> 
+  select(!Person) |> 
+  mutate(logged = "No",
+         event_type = "Falls")
+
+fall_data |> 
+  mutate(logged = "Yes")
+
+not_in_log$c_id <- as.numeric(not_in_log$c_id)
+fall_data <- bind_rows(fall_data, not_in_log)
+
+fall_data$agency <- case_match(fall_data$agency,
+                          "ADULT COMMUNITY TRAINING" ~ "Adult Community Training",
+                          "CORE SERVICES OF NORTHEAST TENNESSEE" ~ "Core Services of Northeast TN",
+                          "CUMBERLAND MOUNTAIN INDUSTRIES INC" ~ "Cumberland Mountain Industries",
+                          "EMORY VALLEY CTR" ~ "Emory Valley Center",
+                          "FRONTIER HEALTH" ~ "Frontier Health",
+                          "HEARTLAND SVCS" ~ "Heartland Services (formerly Douglas Coop.)",
+                          "LAKEWAY ACHIEVEMENT CENTER" ~ "Lakeway Achievement Center",
+                          "LIFE BRIDGES" ~ "Life Bridges",
+                          "MICHAEL DUNN CTR" ~ "Michael Dunn Center",
+                          "NO PROVIDER" ~ NA,
+                          "ORANGE GROVE CENTER INC" ~ "Orange Grove Center",
+                          "RHA HEALTH SERVICES TN - CHATTANOOGA" ~ "RHA - Chatt",
+                          "RHA HEALTH SERVICES TN - KNOXVILLE" ~ "RHA – Knox",
+                          "SEVITA (FKA THE MENTOR NETWORK) - EAST" ~ "Sevita Health (aka D&S)",
+                          "SUNRISE COMMUNITY OF TENNESSEE - EAST" ~ "Sunrise",
+                          "TRI-COUNTY CTR" ~ "Tri-County Center",
+                          "CONSUMER DIRECT FOR TENNESSEE" ~ "Consumer Direct for TN",
+        "DAWN OF HOPE" ~ "Dawn of Hope",
+        "BREAKTHROUGH CORP" ~ "Breakthrough Corp.",
+                          .default = fall_data$agency)
+} else {
+  not_in_log <- NA
+  fall_data <- fall_data
+}
+
+#collapse subagencies into the parent agency name
+fall_data <- collapse_names(fall_data)
+
+##census data import
+census_titles <- read_xlsx(path = ".titles/event_titles.xlsx",
+          sheet = "census",
+          skip = 0,
+          col_types = c("text", "text", "text", "text"))
+
+census <- read_xlsx(path = path2,
+                     sheet = 1,
+                     skip = 2,
+                     col_names = census_titles$clean,
+                     col_types = census_titles$type)
+
+
+census <- change_names(census)
+
+
+
+
+
+
+```
+
+fall data
+
+```{r}
+head(fall_data, 5)
+```
+
+```{r}
+##prepare and clean the datasets
+#log data prep
+fall_data_report <- quarterly_report_months(fall_data)
+```
+
+fall data report
+
+```{r}
+head(fall_data_report, 5)
+```
+
+```{r}
+#census data prep
+key <- census_key(census)
+
+
+fall_data_report <- match_key(fall_data_report, key)
+```
+
+```{r}
+if (is.na(not_in_log)[1] == FALSE) {
+  no <- nrow(not_in_log)
+  yes <- nrow(fall_data_report)
+  nyp <- round((nrow(not_in_log) / nrow(fall_data_report) * 100), 1)
+  
+  string <- str_glue(
+    "Events not logged this quarter: {no}/{yes} ({nyp}%)"
+    )
+  
+  print(string)
+}
+```
+
+Total falls
+
+```{r total falls table}
+
+fall_data_report_months <- fall_data_report |>
+  count(inc_mon_rep, name = "falls")
+
+fall_data_report_months2 <- fall_data_report |>
+  select(inc_mon_rep, inc_mon_num)
+
+fall_data_report_months <- unique(left_join(fall_data_report_months, fall_data_report_months2) |>
+  arrange(inc_mon_num) |>
+  select(-inc_mon_num))
+
+fall_data_report_months |>
+  rbind(c("Total", nrow(fall_data_report))) |>
+  gt(rowname_col = "inc_mon_rep") 
+  cols_label(falls = "Count")
+
+```
+
+Affected age groups
+
+```{r ages}
+
+fall_data_report |>
+  count(age_cat, name = "falls") |>
+  gt(rowname_col = "age_cat") |>
+  cols_label(falls = "Count") 
+```
+
+Current therapies
+
+```{r current therapies}
+
+fall_data_report$ot_pt <- case_match(
+      fall_data_report$ot_pt,
+      "No" ~ "No",
+      "PT" ~ "PT",
+      "OT, PT" ~ "PT, OT",
+      "PT, OT" ~ "PT, OT",
+      "Unknown" ~"Unknown",
+      .default = NA
+    )
+
+fall_data_report |>
+  count(ot_pt, name = "falls") |>
+  gt(rowname_col = "ot_pt") |>
+  cols_label(falls = "Count")
+```
+
+Referrals made
+
+```{r referral for}
+
+fall_data_report |>
+  count(referral_for, name = "falls") |>
+  gt(rowname_col = "referral_for") |>
+  cols_label(falls = "Count")
+```
+
+Events by agency
+
+```{r by agency}
+##recode or extract (binarize) the factors of interest
+fall_data_report$familiar <- recode(fall_data_report$env,
+                                    "Familiar" = 1, 
+                                    .default = 0)
+
+fall_data_report$unfamiliar <- recode(fall_data_report$env,
+                                      "Unfamiliar" = 1, 
+                                      .default = 0)
+
+fall_data_report$intrinsic <- recode(fall_data_report$int_ext,
+                                     "Intrinsic" = 1,
+                                     .default = 0)
+
+fall_data_report$extrinsic <- recode(fall_data_report$int_ext,
+                                     "Extrinsic" = 1,
+                                     .default = 0)
+
+fall_data_report$both_ie <- recode(fall_data_report$int_ext,
+                                   "Both" = 1, 
+                                   .default = 0)
+
+fall_data_report$vis_deficit <- recode(fall_data_report$vis_deficit,
+                                       "Yes" = 1, 
+                                       .default = 0)
+
+fall_data_report$hear_deficit <- recode(fall_data_report$hear_deficit,
+                                        "Yes" = 1, 
+                                        .default = 0)
+
+fall_data_report$mobility <- recode(fall_data_report$mobility,
+                                    "Yes" = 1, 
+                                    .default = 0)
+
+fall_data_report$fall_hist <- recode(fall_data_report$fall_hist,
+                                     "Yes" = 1, 
+                                     .default = 0)
+
+fall_data_report$ac_behav <- recode(fall_data_report$ac_behav,
+                                    "Yes" = 1, 
+                                    .default = 0)
+
+fall_data_report$H_E <- recode(fall_data_report$H_E,
+                               "Yes" = 1, 
+                               .default = 0)
+
+fall_data_report$obes <- recode(fall_data_report$obes, 
+                                "Yes" = 1, 
+                                .default = 0)
+
+fall_data_report$med_change <- recode(fall_data_report$med_change,
+                                      "Yes" = 1, 
+                                      .default = 0)
+
+fall_data_report$prn_sed <- recode(fall_data_report$prn_sed,
+                                   "Yes" = 1, 
+                                   .default = 0)
+
+fall_data_report$adap_equip_fall <- recode(fall_data_report$adap_equip_fall,
+                                           "Yes" = 1, 
+                                           .default = 0)
+
+#any string that has "PT"
+fall_data_report$pt_services <- grepl('PT', fall_data_report$ot_pt) |> 
+    case_match(
+      TRUE ~ 1,
+      .default = 0
+    )
+
+#any string that has "PT"
+fall_data_report$referred_pt <- grepl('PT', fall_data_report$referral_for) |> 
+    case_match(
+      TRUE ~ 1,
+      .default = 0
+    )
+
+#through falls training: the fall occurred with training for falls
+fall_data_report$falls_training <- case_match(
+  fall_data_report$train,
+   c("Yes") ~ 1,
+    c("No") ~ 0,
+    .default = NA
+)
+
+
+fall_data_report$no_falls_training <- case_match(
+  fall_data_report$train,
+   c("No") ~ 1,
+    c("Yes") ~ 0,
+    .default = NA
+)
+
+
+fall_data_report$current_fpp <- case_match(
+    fall_data_report$fpp,
+    c("Yes") ~ 1,
+    c("No") ~ 0,
+    .default = NA
+  )
+
+
+fall_data_report$contrib_diag <- case_match(
+  fall_data_report$contrib_diag,
+  NA ~ 0,
+  .default = 1
+)
+
+
+#count event factors by agency
+cols = c("ac_behav", "adap_equip_fall", "both_ie", "extrinsic",       "fall_hist", "familiar" , "H_E", "intrinsic", "med_change", "hear_deficit",   "mobility", "obes", "prn_sed", "unfamiliar", "vis_deficit",     "pt_services",     "referred_pt", "falls_training", "no_falls_training", "current_fpp", "contrib_diag")
+
+#fall events per agency
+agency_count_report <- fall_data_report |>
+  count(agency, name = "incidence") |>
+  mutate(factor = "fall") |> 
+  left_join(
+    fall_data_report |> 
+      distinct(agency, cen_mean),
+    by = join_by(agency)
+  )
+
+agency_factors <- fall_data_report |> 
+  pivot_longer(
+    cols = all_of(cols),
+    names_to = "factor",
+    values_to = "present"
+  ) |> 
+  group_by(agency, factor) |> 
+  mutate(
+    incidence = sum(present, na.rm = TRUE)
+  ) |> 
+  distinct(agency, factor, incidence, cen_mean) |> 
+  bind_rows(
+    agency_count_report
+  )
+
+agency_factors$factor <- case_match(
+  agency_factors$factor,
+  "ac_behav" ~ "Aggressive/Compulsive",
+  "both_ie" ~ "Both Intrinsic and Extrinsic",
+  "extrinsic" ~ "Extrinsic",
+  "fall_hist" ~ "Hx. of Falls",
+  "familiar" ~ "Familiar Environment",
+  "intrinsic" ~ "Intrinsic",
+  "med_change" ~ "Medication Change",
+  "mobility" ~ "Impaired Gait",
+  "obes" ~ "Obesity",
+  "prn_sed" ~ "PRN Sedation",
+  "unfamiliar" ~ "Unfamiliar Environment",
+  "vis_deficit" ~ "Visual Deficits",
+  "pt_services" ~ "PT Services",
+  "referred_pt" ~ "Referred PT",
+  "falls_training" ~ "Through Falls Training",
+  "no_falls_training" ~ "No Falls Training",
+  "current_fpp" ~ "Current Falls Prevention Plan (FPP)",
+  "fall" ~ "Falls",
+  "H_E" ~ "Hold/Escape",
+  "hear_deficit" ~ "Hearing Deficits",
+  "adap_equip_fall" ~ "Adaptive Equipment",
+  "contrib_diag" ~ "Medical Condition"
+)
+
+agency_factors <- agency_factors |> 
+  filter(incidence > 0 & factor != "Falls") |> 
+  mutate(
+    report = paste0(factor, "(", incidence, ")")
+  )
+
+agency_report <- agency_factors |>
+  select(agency, incidence, report) |>
+  group_by(agency) |>
+  arrange(desc(incidence)) |>
+  mutate(
+    contrib_factor = str_flatten(report, collapse = ", ")
+  ) |>
+  ungroup() |> 
+  select(agency, contrib_factor)
+
+agency_count <- unique(left_join(agency_count_report, agency_report)) |>
+  mutate(percent = round(incidence/cen_mean*100, 1))
+
+agency_count |>
+  arrange(desc(percent)) |>
+  select(agency, cen_mean, incidence, percent, contrib_factor) |>
+  gt(rowname_col = "agency") |>
+  cols_label(
+    cen_mean = "Census",
+    incidence = "Events",
+    percent = "Percent",
+    contrib_factor = "Contributing factors"
+    )
+```
+
+Overall contributing factors
+
+```{r, overall factors}
+
+agency_factors |>
+  group_by(factor) |>
+  count(factor, name = "count") |>
+  mutate(percent = round(count/nrow(fall_data_report)*100, 1)) |>
+  arrange(desc(percent)) |> 
+  ungroup() |>
+  gt(rowname_col = "factor") |>
+  cols_label(
+    count = "Count",
+    percent = "Percent",
+    )
+```
+
+Overall injury types
+
+```{r overall injuries}
+
+fall_data_report |>
+  count(inj_type, name = "count") |>
+  arrange(desc(count)) |>
+  gt(rowname_col = "inj_type") |>
+  cols_label(
+    count = "Count"
+    )
+  
+
+```
+
+Estimated medical expenses
+
+```{r medical expenses}
+
+med_costs <- tibble(
+  med_result = c(NA, "ER", "ER, Hospitalized", "Urgent Care/Walk-in Clinic",
+                 "Dr. Appointment", "Dr. Appointment, Other", "Other"),
+  med_cost = c(NA, 2200, 4159, 180, NA, NA, NA)
+)
+
+count_med_need <- fall_data_report |>
+  count(med_result, name = "count")
+
+count_med_need <- left_join(count_med_need, med_costs) |>
+  mutate(med_type_total = count*med_cost)
+
+count_med_need |>
+  arrange(desc(count)) |>
+  gt(rowname_col = "med_result") |>
+  cols_label(
+    count = "Count",
+    med_cost = "Estimated Cost ($)",
+    med_type_total = "Medical Type Estimated Cost ($)"
+  )
+
+```
+
+Repeat event dates of falls from people affected by falls during this quarter.
+
+The search range includes the current year to date (up to the current quarter) and the previous year (Q1-Q4 from last year).
+
+```{r repeat falls}
+#names of people from this quarter
+#it's important at this step to get a unique set of names in a key
+# otherwise, there will be duplicated entries in repeat falls
+# depending upon how many alternate identities there are per person
+
+fall_names <- fall_data_report |> 
+  select(first_name, last_name, m_i, dob) |> 
+  distinct(first_name, last_name, .keep_all = TRUE)
+
+#I had to remove dob from distinct() because some people had NAs entered
+#I do not want to completely remove them but I also do not want duplicates
+#for people with a DOB and NA entries as unique individuals
+
+fall_names_name <- as.data.frame(str_split(fall_names$last_name, pattern = ",", simplify = TRUE))
+
+fall_names$last_name <- fall_names_name$V1
+
+#events from year-to-date
+inc_date <- as_tibble(str_split(fall_data$event_date, pattern = "-", n = 3, simplify = T))
+  
+  fall_data$inc_mon <- inc_date$V2
+
+if (month[1] == "NA") {
+  
+  fall_to_date <- fall_data |>
+    mutate(event_date = as.Date(substr(event_date, 1, 10))) |> 
+    distinct(first_name, last_name, event_date, c_id) |> 
+    select(!c_id)
+  
+} else {
+  
+  fall_to_date <- fall_data |>
+  mutate(inc_mon_num = as.numeric(inc_mon),
+         event_date = as.Date(substr(event_date, 1, 10))
+         ) |>
+  filter(inc_mon_num <= as.numeric(month[3])) |> 
+  distinct(first_name, last_name, event_date, c_id) |> 
+  select(!c_id)
+  
+}
+
+#removed middle initial (m_i) because it did not seem necessary and sometimes had a period and the algorithm 
+#assigned them as a new person
+
+#some people are experiencing multiple falls per day
+#using case ID (c_id) to differentiate from repeat entries versus 
+#actual distinct events:
+#distinct(c_id) |> select(!c_id)
+
+#events from last year
+fall_data_last_year <- import_event_data(
+  path_str = path1.2,
+  event_str = "fall_events"
+)  
+
+
+#fall_data_last_year$event_date <- as.character(substr(fall_data_last_year$event_date, 1, 10))
+
+fall_data_last_year_na <- is.na(fall_data_last_year$last_name)
+
+fall_data_last_year <- fall_data_last_year[!fall_data_last_year_na,]
+
+fall_data_last_year <- fall_data_last_year |>
+  select(first_name, last_name, event_date)
+
+
+#combine events
+repeat_falls <- bind_rows(fall_to_date, fall_data_last_year) |>
+  mutate(
+    event_date_char = as.character(substr(event_date, 1, 10))
+  )
+
+
+repeat_falls_events <- inner_join(repeat_falls, fall_names) |>
+  mutate(name = paste(first_name, last_name, sep = " "))
+
+repeat_falls_events_person <- repeat_falls_events |>
+  count(name, name = "events_person")
+
+repeat_falls_events_date <- repeat_falls_events |>
+  group_by(name) |>
+  arrange(event_date) |>
+  mutate(conc_date = str_flatten(event_date_char, collapse = ", ")) |>
+  select(first_name, last_name, m_i, dob, conc_date)
+
+repeat_falls_events_person_date <- left_join(repeat_falls_events_person,
+                                          repeat_falls_events_date) |>
+  filter(events_person > 1)
+
+repeat_falls_events_person_date |>
+  distinct(name, events_person, conc_date) |>
+  arrange(desc(events_person)) |>
+  gt(rowname_col = "name") |>
+  cols_label(events_person = "Events",
+             conc_date = "Dates") 
+```

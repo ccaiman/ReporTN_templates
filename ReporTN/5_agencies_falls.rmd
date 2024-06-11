@@ -1,0 +1,587 @@
+---
+title: "RTST Serious Injury Falls by Agency Trend Report"
+format: docx
+execute: 
+  echo: false
+  warning: false
+params:
+  census_path: ""
+  falls_path: ""
+  year: ""
+---
+
+## Serious injury report - `r params$year` Fall events
+
+```{r, setup}
+library(tidyverse)
+library(gt)
+library(readxl)
+
+source("scripts/process_data.R")
+
+
+# path1 <- "E:/2023 - FALLS Event Tracking.xlsx"
+# path2 <- "E:/2023 Agency Census Listing.xlsx"
+# year = "2023"
+
+
+path1 <- params$falls_path
+path2 <- params$census_path
+year <- params$year
+
+```
+
+```{r, data import}
+
+##import datasets
+#log data import
+
+
+fall_data <- import_event_data(
+  path_str = path1, 
+  event_str = "fall_events"
+  )
+
+
+##prepare and clean the datasets
+#log data prep
+
+fall_data <- fall_data[,1:55]
+
+#collapse subagencies into the parent agency name
+fall_data <- collapse_names(fall_data)
+
+
+##census data import
+census_titles <- read_xlsx(path = ".titles/event_titles.xlsx",
+          sheet = "census",
+          skip = 0,
+          col_types = c("text", "text", "text", "text"))
+
+census <- read_xlsx(path = path2,
+                     sheet = 1,
+                     skip = 2,
+                     col_names = census_titles$clean,
+                     col_types = census_titles$type)
+
+census <- change_names(census)
+
+```
+
+```{r, data prep}
+#census data prep
+regional_census <- as.integer(round(max(census$tot, na.rm = TRUE)))
+
+
+key <- census_key_yearly(census)
+
+
+##clean the fall data
+fall_data_report <- fall_data
+
+##recode or extract (binarize) the factors of interest
+fall_data_report$familiar <- recode(fall_data_report$env,
+                                    "Familiar" = 1, 
+                                    .default = 0)
+
+fall_data_report$unfamiliar <- recode(fall_data_report$env,
+                                      "Unfamiliar" = 1, 
+                                      .default = 0)
+
+fall_data_report$intrinsic <- recode(fall_data_report$int_ext,
+                                     "Intrinsic" = 1,
+                                     .default = 0)
+
+fall_data_report$extrinsic <- recode(fall_data_report$int_ext,
+                                     "Extrinsic" = 1,
+                                     .default = 0)
+
+fall_data_report$both_ie <- recode(fall_data_report$int_ext,
+                                   "Both" = 1, 
+                                   .default = 0)
+
+fall_data_report$vis_deficit <- recode(fall_data_report$vis_deficit,
+                                       "Yes" = 1, 
+                                       .default = 0)
+
+fall_data_report$hear_deficit <- recode(fall_data_report$hear_deficit,
+                                        "Yes" = 1, 
+                                        .default = 0)
+
+fall_data_report$mobility <- recode(fall_data_report$mobility,
+                                    "Yes" = 1, 
+                                    .default = 0)
+
+fall_data_report$fall_hist <- recode(fall_data_report$fall_hist,
+                                     "Yes" = 1, 
+                                     .default = 0)
+
+fall_data_report$ac_behav <- recode(fall_data_report$ac_behav,
+                                    "Yes" = 1, 
+                                    .default = 0)
+
+fall_data_report$H_E <- recode(fall_data_report$H_E,
+                               "Yes" = 1, 
+                               .default = 0)
+
+fall_data_report$obes <- recode(fall_data_report$obes, 
+                                "Yes" = 1, 
+                                .default = 0)
+
+fall_data_report$med_change <- recode(fall_data_report$med_change,
+                                      "Yes" = 1, 
+                                      .default = 0)
+
+fall_data_report$prn_sed <- recode(fall_data_report$prn_sed,
+                                   "Yes" = 1, 
+                                   .default = 0)
+
+fall_data_report$adap_equip_fall <- recode(fall_data_report$adap_equip_fall,
+                                           "Yes" = 1, 
+                                           .default = 0)
+
+#any string that has "PT"
+fall_data_report$pt_services <- grepl('PT', fall_data_report$ot_pt) |> 
+    case_match(
+      TRUE ~ 1,
+      .default = 0
+    )
+
+#any string that has "PT"
+fall_data_report$referred_pt <- grepl('PT', fall_data_report$referral_for) |> 
+    case_match(
+      TRUE ~ 1,
+      .default = 0
+    )
+
+#through falls training: the fall occurred with training for falls
+fall_data_report$falls_training <- case_match(
+  fall_data_report$train,
+   c("Yes") ~ 1,
+    c("No") ~ 0,
+    .default = NA
+)
+
+
+fall_data_report$no_falls_training <- case_match(
+  fall_data_report$train,
+   c("No") ~ 1,
+    c("Yes") ~ 0,
+    .default = NA
+)
+
+
+fall_data_report$current_fpp <- case_match(
+    fall_data_report$fpp,
+    c("Yes") ~ 1,
+    c("No") ~ 0,
+    .default = NA
+  )
+
+
+fall_data_report$contrib_diag <- case_match(
+  fall_data_report$contrib_diag,
+  NA ~ 0,
+  .default = 1
+)
+
+
+fall_data_report2 <- match_key(fall_data_report, key)
+
+
+```
+
+Regional average census: `r regional_census[1]`
+
+```{r, agency events}
+
+cols = c("ac_behav", "adap_equip_fall", "both_ie", "extrinsic",       "fall_hist", "familiar" , "H_E", "intrinsic", "med_change", "hear_deficit",   "mobility", "obes", "prn_sed", "unfamiliar", "vis_deficit",     "pt_services",     "referred_pt", "falls_training", "no_falls_training", "current_fpp", "contrib_diag")
+
+#fall events per agency
+agency_count_report <- fall_data_report2 |>
+  count(agency, name = "incidence") |>
+  mutate(factor = "fall") |> 
+  left_join(
+    fall_data_report2 |> 
+      distinct(agency, cen_mean),
+    by = join_by(agency)
+  )
+
+agency_factors <- fall_data_report2 |> 
+  pivot_longer(
+    cols = all_of(cols),
+    names_to = "factor",
+    values_to = "present"
+  ) |> 
+  group_by(agency, factor) |> 
+  mutate(
+    incidence = sum(present, na.rm = TRUE)
+  ) |> 
+  distinct(agency, factor, incidence, cen_mean) |> 
+  bind_rows(
+    agency_count_report
+  )
+```
+
+```{r, region events}
+
+region_factors <- fall_data_report2 |> 
+  pivot_longer(
+    cols = all_of(cols),
+    names_to = "factor",
+    values_to = "present"
+  ) |> 
+  group_by(factor) |> 
+  mutate(
+    incidence = sum(present, na.rm = TRUE)
+  ) |> 
+  distinct(factor, incidence) |> 
+  bind_rows(
+    fall_data_report2 |>
+      mutate(incidence = n(),
+             factor = "fall") |>
+      distinct(incidence, factor)
+  )
+
+region_factors$falls <- nrow(fall_data_report)
+
+region_factors$region_census <- regional_census[1]
+
+names(region_factors) <- c("factor",
+                           "region_count",
+                           "region_falls",
+                           "region_census")
+
+```
+
+```{r, combine region and agency events}
+
+factors <- left_join(agency_factors, 
+                     region_factors, 
+                     by = "factor") |>
+  mutate(subset = "total")
+
+```
+
+```{r, agency serious injury}
+
+#falls serious injury per agency
+agency_count_si <- fall_data_report2 |>
+  filter(ser_inj == "Yes") |>
+  count(agency, name = "incidence") |>
+  mutate(factor = "fall")
+
+agency_factors_si <- fall_data_report2 |> 
+  filter(ser_inj == "Yes") |>
+  pivot_longer(
+    cols = all_of(cols),
+    names_to = "factor",
+    values_to = "present"
+  ) |> 
+  group_by(agency, factor) |> 
+  mutate(
+    incidence = sum(present, na.rm = TRUE)
+  ) |> 
+  distinct(agency, factor, incidence) |> 
+  bind_rows(
+    agency_count_si
+  )
+```
+
+```{r, region serious injury}
+
+region_factors_si <- fall_data_report2 |> 
+  filter(ser_inj == "Yes") |>
+  pivot_longer(
+    cols = all_of(cols),
+    names_to = "factor",
+    values_to = "present"
+  ) |> 
+  group_by(factor) |> 
+  mutate(
+    incidence = sum(present, na.rm = TRUE)
+  ) |> 
+  distinct(factor, incidence) |> 
+  bind_rows(
+    fall_data_report2 |>
+      filter(ser_inj == "Yes") |>
+      mutate(incidence = n(),
+             factor = "fall") |>
+      distinct(incidence, factor)
+  )
+
+#calculate region serious injury rates
+names(region_factors_si) <- c("factor", "region_count_si")
+region_factors_si <- left_join(region_factors,
+                               region_factors_si,
+                               by = join_by(factor))
+region_factors_si <- region_factors_si |>
+  group_by(factor) |>
+  mutate(region_si = round(region_count_si/region_count*100, 2))
+
+##combine agency and region factors for serious injury subset
+factors_si <- left_join(agency_factors_si, 
+                        region_factors_si, 
+                        by = "factor") |> 
+  mutate(subset = "serious_injury")
+
+```
+
+```{r, combine events counts with serious injury counts}
+
+names(factors_si) <- c("agency", "factor", "incidence_si", 
+                       "region_count", "region_falls", "region_census",
+                       "region_count_si", "region_si", "subset")
+
+combined_factors <- bind_rows(factors, factors_si)
+
+#adding numbers to make calcualtions
+#we need to reference certain numbers for percentages
+#by using conditional calculations depending upon subset
+
+#incidence for serious injury rates
+total_key <- factors |> 
+  distinct(agency, factor, incidence) |> 
+  rename(incidence_tot = incidence)
+
+#falls for factor rates
+falls_key <- agency_count_report |> 
+  select(!c(factor, cen_mean)) |> 
+  rename(falls = incidence)
+
+
+combined_factors <- left_join(combined_factors, total_key,
+                                by = join_by(agency, factor))
+
+combined_factors <- left_join(combined_factors, falls_key,
+                                by = join_by(agency))
+
+combined_factors2 <- combined_factors |>
+  group_by(agency, factor) |>
+  mutate(
+    region_si = round(region_count_si / region_count * 100, 2),
+    percent = case_when(
+      subset == "serious_injury" ~ round(incidence_si / incidence_tot * 100, 2),
+      subset == "total" ~ ifelse(
+        factor == "fall",
+        round(incidence / cen_mean * 100, 2), 
+        round(incidence / falls * 100, 2)
+        )
+      ),
+    region_percent = case_when(
+      subset == "total" ~ ifelse(
+        factor == "fall",
+        round(region_count / region_census * 100, 2),
+        round(region_count / region_falls * 100, 2)
+        ),
+      subset != "total" ~ region_si
+      )
+  )
+  
+
+#separate calculated percents by subtype
+combined_factors2si <- combined_factors2 |>
+  group_by(agency, factor) |>
+  filter(subset == "serious_injury") |>
+  mutate(region_count_si = region_count_si,
+         region_si = region_si,
+         incidence_si = incidence_si,
+         percent_si = percent) |>
+  select(agency, factor, region_count_si, region_si, incidence_si, percent_si)
+
+combined_factors2tot <- combined_factors2 |>
+  group_by(agency, factor) |>
+  filter(subset == "total") |>
+  mutate(region_count = region_count,
+         region_percent = region_percent,
+         incidence = incidence,
+         percent = percent) |>
+  select(agency, factor, region_count, region_percent, incidence, percent)
+
+
+combined_factors3 <- left_join(combined_factors2tot, combined_factors2si, 
+                               by = join_by(agency, factor))
+
+##we need to associate each agency with all of the factors for the report
+# agency_factor_key <- agency_count_report |> 
+#   select(agency) |> 
+#   mutate(
+#     factor = list(cols)
+#   ) |> 
+#   unnest(cols = c(factor))
+
+#reportable agency name with census
+agency_rep <- agency_count_report |>
+  select(agency, cen_mean) |> 
+  group_by(agency) |>
+    mutate(agency_rep = paste0(agency, " (", max(cen_mean, na.rm = TRUE), ")")) |> 
+  distinct(agency, agency_rep)
+
+combined_factors3 <- left_join(combined_factors3, agency_rep,
+                                 by = join_by(agency))
+```
+
+```{r, table prep}
+
+combined_factors3$sort <- case_match(
+  combined_factors3$factor,
+  "fall" ~ 1,
+  "pt_services" ~ 2,
+  "referred_pt" ~ 3,
+  "no_falls_training" ~ 4,
+  "falls_training" ~ 5,
+  "current_fpp" ~ 6,
+  "fall_hist" ~ 7,
+  "ac_behav" ~ 8,
+  "H_E" ~ 9,
+  "contrib_diag" ~ 10,
+  "mobility" ~ 11,
+  "vis_deficit" ~ 12,
+  "hear_deficit" ~ 13,
+  "familiar" ~ 14,
+  "unfamiliar" ~ 15,
+  "adap_equip_fall" ~ 16,
+  "intrinsic" ~ 17,
+  "extrinsic" ~ 18,
+  "both_ie" ~ 19,
+  "med_change" ~ 20,
+  "prn_sed" ~ 21,
+  "obes" ~ 22
+)
+
+combined_factors3$factor <- case_match(
+  combined_factors3$factor,
+  "ac_behav" ~ "Aggressive/Compulsive",
+  "both_ie" ~ "Both Intrinsic and Extrinsic",
+  "extrinsic" ~ "Extrinsic",
+  "fall_hist" ~ "Hx. of Falls",
+  "familiar" ~ "Familiar Environment",
+  "intrinsic" ~ "Intrinsic",
+  "med_change" ~ "Medication Change",
+  "mobility" ~ "Impaired Gait",
+  "obes" ~ "Obesity",
+  "prn_sed" ~ "PRN Sedation",
+  "unfamiliar" ~ "Unfamiliar Environment",
+  "vis_deficit" ~ "Visual Deficits",
+  "pt_services" ~ "PT Services",
+  "referred_pt" ~ "Referred PT",
+  "falls_training" ~ "Through Falls Training",
+  "no_falls_training" ~ "No Falls Training",
+  "current_fpp" ~ "Current Falls Prevention Plan (FPP)",
+  "fall" ~ "Falls",
+  "H_E" ~ "Hold/Escape",
+  "hear_deficit" ~ "Hearing Deficits",
+  "adap_equip_fall" ~ "Adaptive Equipment",
+  "contrib_diag" ~ "Medical Condition"
+)
+
+combined_factors4 <- combined_factors3 |> 
+  replace_na(
+    list(region_count_si = 0,
+         region_si = 0,
+         incidence_si = 0,
+         percent_si = 0,
+         region_count = 0,
+         region_percent = 0,
+         incidence = 0,
+         percent = 0
+        )
+    )
+
+#prep the regional table
+region_combined_factors_ <- drop_na(
+  combined_factors3 |>
+      ungroup() |>
+      distinct(
+        sort, 
+             factor, 
+             region_count, 
+             region_percent
+        )
+)
+
+
+region_combined_factors_si <- drop_na(
+  combined_factors3 |>
+  ungroup() |>
+  distinct(
+    sort, 
+           factor,
+           region_count_si, 
+           region_si
+    )
+)
+
+region_combined_factors <- left_join(
+  region_combined_factors_,
+  region_combined_factors_si,
+  by = join_by(sort, factor)
+  )
+
+#prep the agency table
+combined_factors5 <- combined_factors4 |> 
+  select(!c(region_count_si, region_si, region_count, region_percent)) |> 
+  left_join(
+    region_combined_factors,
+    by = join_by(factor, sort)
+    )
+```
+
+Factors for the East Region (1915C without ICF service program):
+
+```{r, east region factors}
+
+region_combined_factors |>
+  arrange(sort) |>
+  select(!sort) |>
+  gt(rowname_col = "factor") |>
+  cols_label(
+    region_count = "Region #",
+    region_percent = "Region %",
+    region_count_si = "Region # (SI)",
+    region_si = "Region % (SI)",
+    ) |>
+  tab_footnote(
+    footnote = "Serious Injury",
+    locations = cells_column_labels(
+      columns = c(region_count_si, region_si)
+    )
+  )
+```
+
+Factors by agency in the East Region (1915C without ICF service program):
+
+```{r, factors by agency}
+
+combined_factors5 |>
+  ungroup() |>
+  # left_join(
+  #   agency_factor_key,
+  #   by = join_by(agency, factor)) |>
+  arrange(sort) |>
+  arrange(agency) |>
+  select(!c(sort, agency)) |>
+  select(agency_rep, 
+         factor, 
+         region_count, 
+         region_percent, 
+         incidence, percent, 
+         region_count_si, 
+         region_si, 
+         incidence_si, 
+         percent_si) |>
+  group_by(agency_rep) |>
+  gt(rowname_col = "factor") |>
+  cols_label(
+    region_count = "Region #",
+    region_percent = "Region %",
+    incidence = "Agency #",
+    percent = "Agency %",
+    region_count_si = "Region # (SI)",
+    region_si = "Region % (SI)",
+    incidence_si = "Agency # (SI)",
+    percent_si = "Agency % (SI)"
+    )
+
+```
+
