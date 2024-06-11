@@ -18,27 +18,27 @@ library(readxl)
 library(gt)
 library(reshape2)
 
-source("scripts/process_data.R")
+source("./app_scripts/process_data.R")
 
 path1 <- params$current_falls_path
 path1.2 <- params$previous_falls_path
 path2 <- params$census_path
 path3 <- "NA"
-year = as.character(params$year)
-month = str_split(params$month, ", ", simplify = TRUE)[1,]
+y = as.character(params$year)
+m = str_split(params$month, ", ", simplify = TRUE)[1,]
 ```
 
 ```{r report range, results='asis'}
 
-if (month[1] == "NA") {
+if (m[1] == "NA") {
   
   print(
-    str_glue("# {year} yearly fall events")
+    str_glue("# {y} yearly fall events")
     )
   
 } else {
   
-  quart <- tibble(month = month)
+  quart <- tibble(month = m)
   
   quart$quart <- case_match(
     quart$month,
@@ -57,7 +57,7 @@ if (month[1] == "NA") {
   )
   
   print(
-    str_glue("# {year} Q{quart$quart[1]} fall events")
+    str_glue("# {y} Q{quart$quart[1]} fall events")
     )
 }
 
@@ -185,7 +185,7 @@ head(fall_data, 5)
 ```{r}
 ##prepare and clean the datasets
 #log data prep
-fall_data_report <- quarterly_report_months(fall_data)
+fall_data_report <- quarterly_report_months(data_df = fall_data, m = m, y = y)
 ```
 
 fall data report
@@ -196,7 +196,7 @@ head(fall_data_report, 5)
 
 ```{r}
 #census data prep
-key <- census_key(census)
+key <- census_key(census, m = m)
 
 
 fall_data_report <- match_key(fall_data_report, key)
@@ -230,9 +230,11 @@ fall_data_report_months <- unique(left_join(fall_data_report_months, fall_data_r
   arrange(inc_mon_num) |>
   select(-inc_mon_num))
 
-fall_data_report_months |>
-  rbind(c("Total", nrow(fall_data_report))) |>
-  gt(rowname_col = "inc_mon_rep") 
+fall_data_report_months <- fall_data_report_months |>
+  rbind(c("Total", nrow(fall_data_report)))
+
+gt(data = fall_data_report_months,
+  rowname_col = "inc_mon_rep") |>
   cols_label(falls = "Count")
 
 ```
@@ -558,7 +560,7 @@ inc_date <- as_tibble(str_split(fall_data$event_date, pattern = "-", n = 3, simp
   
   fall_data$inc_mon <- inc_date$V2
 
-if (month[1] == "NA") {
+if (m[1] == "NA") {
   
   fall_to_date <- fall_data |>
     mutate(event_date = as.Date(substr(event_date, 1, 10))) |> 
@@ -571,7 +573,7 @@ if (month[1] == "NA") {
   mutate(inc_mon_num = as.numeric(inc_mon),
          event_date = as.Date(substr(event_date, 1, 10))
          ) |>
-  filter(inc_mon_num <= as.numeric(month[3])) |> 
+  filter(inc_mon_num <= as.numeric(m[3])) |> 
   distinct(first_name, last_name, event_date, c_id) |> 
   select(!c_id)
   
