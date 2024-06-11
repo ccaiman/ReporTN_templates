@@ -168,30 +168,12 @@ census <- read_xlsx(path = path2,
 
 
 census <- change_names(census)
-
-
-
-
-
-
 ```
 
 ```{r}
 ##prepare and clean the datasets
 #log data prep
 fall_data_report <- quarterly_report_months(data_df = fall_data, m = m, y = y)
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-=======
->>>>>>> 93cea58f818a663fd5487afb8d37cefd07411e3d
-```
-
-fall data report
-
-```{r}
-head(fall_data_report, 5)
->>>>>>> 93cea58f818a663fd5487afb8d37cefd07411e3d
 ```
 
 ```{r}
