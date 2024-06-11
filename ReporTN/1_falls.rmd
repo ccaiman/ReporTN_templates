@@ -181,7 +181,10 @@ census <- change_names(census)
 #log data prep
 fall_data_report <- quarterly_report_months(data_df = fall_data, m = m, y = y)
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> 93cea58f818a663fd5487afb8d37cefd07411e3d
 ```
 
 fall data report
