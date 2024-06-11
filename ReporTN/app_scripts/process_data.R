@@ -94,9 +94,11 @@ change_names <- function(census_df){
   return(census)
 }
 
-quarterly_report_months <- function(data_df){
+quarterly_report_months <- function(data_df, m, y){
   
   data <- data_df
+  m <- m
+  y <- y
   
   inc_date <- as_tibble(str_split(data$event_date, pattern = "-", n = 3, simplify = T))
   
@@ -104,30 +106,30 @@ quarterly_report_months <- function(data_df){
   data$inc_mon <- inc_date$V2
   data$inc_day <- inc_date$V3
   
-  if (month[1] == 'NA') {
+  if (m[1] == 'NA') {
     data_report <- data |>  
-      filter(inc_year == year)
+      filter(inc_year == y)
   } else {
     data_report <- data |>  
-    filter(inc_year == year) |> 
-    filter(inc_mon == month[1] | inc_mon == month[2] | inc_mon == month[3])
+    filter(inc_year == y) |> 
+    filter(inc_mon == m[1] | inc_mon == m[2] | inc_mon == m[3])
   }
   
   
   
   data_report$inc_mon_rep <- recode(data_report$inc_mon,
-                                         "01" = paste("Jan. ", year),
-                                         "02" = paste("Feb. ", year),
-                                         "03" = paste("Mar. ", year),
-                                         "04" = paste("Apr. ", year),
-                                         "05" = paste("May. ", year),
-                                         "06" = paste("Jun. ", year),
-                                         "07" = paste("Jul. ", year),
-                                         "08" = paste("Aug. ", year),
-                                         "09" = paste("Sep. ", year),
-                                         "10" = paste("Oct. ", year),
-                                         "11" = paste("Nov. ", year),
-                                         "12" = paste("Dec. ", year))
+                                         "01" = paste("Jan. ", y),
+                                         "02" = paste("Feb. ", y),
+                                         "03" = paste("Mar. ", y),
+                                         "04" = paste("Apr. ", y),
+                                         "05" = paste("May. ", y),
+                                         "06" = paste("Jun. ", y),
+                                         "07" = paste("Jul. ", y),
+                                         "08" = paste("Aug. ", y),
+                                         "09" = paste("Sep. ", y),
+                                         "10" = paste("Oct. ", y),
+                                         "11" = paste("Nov. ", y),
+                                         "12" = paste("Dec. ", y))
   
   data_report$inc_mon_num <- as.numeric(data_report$inc_mon)
   
@@ -136,9 +138,10 @@ quarterly_report_months <- function(data_df){
 
 
 
-census_key <- function(census_df){
+census_key <- function(census_df, m){
   
   census <- census_df
+  m <- m
   
   census <- census |> 
     filter(is.na(agency) == FALSE)
@@ -150,7 +153,7 @@ census_key <- function(census_df){
   census <- left_join(census, agency_key)
   
   #use the input month to index the census table for the specified months
-  if (month[1] == "NA") {
+  if (m[1] == "NA") {
     census_mon <- census |> select(jan:dec)
     names(census_mon) <- c("m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8", "m9", "m10", "m11", "m12")
     
@@ -159,8 +162,8 @@ census_key <- function(census_df){
       rowwise() |> 
       transmute(cen_mean = round(mean(`m1`:`m12`, na.rm = TRUE), 0))
   } else {
-    census_mon1 <- as.numeric(month[1]) + 2
-    census_mon3 <- as.numeric(month[3]) + 2
+    census_mon1 <- as.numeric(m[1]) + 2
+    census_mon3 <- as.numeric(m[3]) + 2
   
     census_mon <- census[,census_mon1:census_mon3]
     names(census_mon) <- c("m1", "m2", "m3")
