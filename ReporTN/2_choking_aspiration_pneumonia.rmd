@@ -1,59 +1,47 @@
 ---
 title: "RTST Choking, Aspiration, and Pneumonia Trend Report"
-format: docx
-execute: 
-  echo: false
-  warning: false
+output: word_document
 params:
   census_path: ""
   cho_path: ""
   current_asp_path: ""
   past_asp_path: ""
   year: ""
-  months: ""
+  month: ""
 ---
 
-```{r, setup}
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 
 library(tidyverse)
 library(reshape2)
 library(gt)
 library(readxl)
 
-source("scripts/process_data.R")
-
-
-#path1.1 <- "E:/CHOKING Event Tracking.xlsm"
-#path1.2 <- "E:/2023 - ASPIRATION - PNEUMONIA Event Tracking.xlsm"
-#path1.2.2 <- "E:/2022 - ASPIRATION - PNEUMONIA Event Tracking.xlsm"
-#path2 <- "E:/2023 Agency Census Listing.xlsx"
-#year = "2023"
-#month = c("10", "11", "12")
-
+source("./app_scripts/process_data.R")
 
 path1.1 <-  params$cho_path
 path1.2 <- params$current_asp_path
-path1.2 <- str_sub(path1.2, 2, nchar(path1.2) - 2)
+#path1.2 <- str_sub(path1.2, 2, nchar(path1.2) - 2)
 path1.2.2 <- params$past_asp_path
-path1.2.2 <- str_sub(path1.2.2, 2, nchar(path1.2.2) - 2)
+#path1.2.2 <- str_sub(path1.2.2, 2, nchar(path1.2.2) - 2)
 path2 <- params$census_path
-year = params$year
-month = params$months
+y = params$year
+m = str_split(params$month, ", ", simplify = TRUE)[1,]
 
 ```
 
-```{r, report range}
-#| output: asis
+```{r report range, results='asis'}
 
-if (month[1] == "NA") {
+if (m[1] == "NA") {
   
   print(
-    str_glue("# {year} yearly choking, aspiration, pneumonia events")
+    str_glue("# {y} yearly choking, aspiration, pneumonia events")
     )
   
 } else {
   
-  quart <- tibble(month = month)
+  quart <- tibble(month = m)
   
   quart$quart <- case_match(
     quart$month,
@@ -72,13 +60,13 @@ if (month[1] == "NA") {
   )
   
   print(
-    str_glue("# {year} Q{quart$quart[1]} choking, aspiration, pneumonia events")
+    str_glue("# {y} Q{quart$quart[1]} choking, aspiration, pneumonia events")
     )
 }
 
 ```
 
-```{r, data import}
+```{r data import}
 #log data import, choking
 choking_data <- import_event_data(
   path_str = path1.1,
@@ -125,28 +113,25 @@ census <- change_names(census)
 
 ```
 
-```{r, data prep}
+```{r data prep}
 #select data and filter for quarterly months
 #choking
 choking_data <- choking_data[,1:60]
 
-choking_data_report <- quarterly_report_months(choking_data)
+choking_data_report <- quarterly_report_months(choking_data, m = m, y = y)
 
 #aspiration
 aspiration_data <- aspiration_data[,1:43]
 
-aspiration_data_report <- quarterly_report_months(aspiration_data)
+aspiration_data_report <- quarterly_report_months(aspiration_data, m = m, y = y)
 
 #pneumonia
 pneumonia_data <- pneumonia_data[,1:14]
 
-pneumonia_data_report <- quarterly_report_months(pneumonia_data)
-
-
+pneumonia_data_report <- quarterly_report_months(pneumonia_data, m = m, y = y)
 
 #census data prep
-key <- census_key(census)
-
+key <- census_key(census, m = m)
 
 #match census data to reportable events
 choking_data_report <- match_key(choking_data_report, key)
@@ -156,14 +141,13 @@ aspiration_data_report <- match_key(aspiration_data_report, key)
 
 
 pneumonia_data_report <- match_key(pneumonia_data_report, key)
-
 ```
 
 ## Choking trend report
 
 Total choking events
 
-```{r, total choking table}
+```{r total choking table}
 
 choking_data_report_months <- choking_data_report |>
   count(inc_mon_rep, name = "event")
@@ -184,7 +168,7 @@ choking_data_report_months |>
 
 Affected age groups
 
-```{r, choking ages}
+```{r choking ages}
 
 choking_data_report |>
   count(age_cat, name = "event") |>
@@ -194,7 +178,7 @@ choking_data_report |>
 
 Current therapies
 
-```{r, choking current therapies}
+```{r choking current therapies}
 
 choking_data_report |>
   count(current_services, name = "event") |>
@@ -204,7 +188,7 @@ choking_data_report |>
 
 Referrals made
 
-```{r, referral for choking}
+```{r referral for choking}
 
 choking_data_report |>
   count(referral_for, name = "choking") |>
@@ -214,7 +198,7 @@ choking_data_report |>
 
 Incidences by agency
 
-```{r, choking event by agency}
+```{r choking event by agency}
 
 agency_count <- choking_data_report |>
   count(agency, name = "event") 
@@ -269,7 +253,7 @@ agency_count |>
 
 Overall contributing factors
 
-```{r, overall factors choking}
+```{r overall factors choking}
 
 a_list4 |>
   group_by(value) |>
@@ -288,7 +272,7 @@ a_list4 |>
 
 Total aspiration events
 
-```{r, aspiration total}
+```{r aspiration total}
 
 aspiration_data_report_months <- aspiration_data_report |>
   count(inc_mon_rep, name = "event")
@@ -314,7 +298,7 @@ if (nrow(aspiration_data_report_months) == 0) {
 
 Affected age groups
 
-```{r, aspiration age groups}
+```{r aspiration age groups}
 
 
 aspiration_data_report |>
@@ -326,7 +310,7 @@ aspiration_data_report |>
 
 Current therapies
 
-```{r, aspiration therapies}
+```{r aspiration therapies}
 
 aspiration_data_report |>
   count(current_services, name = "event") |>
@@ -336,7 +320,7 @@ aspiration_data_report |>
 
 Referrals made
 
-```{r, aspiration referrals}
+```{r aspiration referrals}
 
 if (nrow(aspiration_data_report_months) == 0) {
   print("No events were reported")
@@ -352,7 +336,7 @@ if (nrow(aspiration_data_report_months) == 0) {
 
 Incidences by agency
 
-```{r, aspiration event by agency}
+```{r aspiration event by agency}
 
 agency_count_asp <- aspiration_data_report |>
   count(agency, name = "event") 
@@ -413,7 +397,7 @@ agency_count_asp |>
 
 Overall contributing factors
 
-```{r, overall factors aspiration}
+```{r overall factors aspiration}
 
 if (nrow(aspiration_data_report_months) == 0) {
   print("No events were reported")
@@ -438,7 +422,7 @@ if (nrow(aspiration_data_report_months) == 0) {
 
 Total pneumonia events
 
-```{r, pneumonia total}
+```{r pneumonia total}
 
 pneumonia_data_report_months <- pneumonia_data_report |>
   count(inc_mon_rep, name = "event")
@@ -462,7 +446,7 @@ if (nrow(pneumonia_data_report_months) == 0) {
 
 Affected age groups
 
-```{r, pneumonia age groups}
+```{r pneumonia age groups}
 
 pneumonia_data_report$age_cat <- cut_interval(pneumonia_data_report$age, length = 10, right = FALSE)
 
@@ -491,7 +475,7 @@ Repeat event dates of pneumonia and aspiration from names of people affected by 
 
 The search range includes the current year to date (up to the current quarter) and the previous year (Q1-Q4 from last year).
 
-```{r, pneumonia repeat episodes}
+```{r pneumonia repeat episodes}
 
 #names of people from this quarter
 pneumonia_names <- unique(pneumonia_data_report |>
@@ -514,7 +498,7 @@ inc_date <- as_tibble(str_split(pneumonia_data$event_date, pattern = "-", n = 3,
   
   pneumonia_data$inc_mon <- inc_date$V2
 
-if (month[1] == "NA") {
+if (m[1] == "NA") {
   
   pneumonia_to_date <- pneumonia_data |>
     select(first_name, last_name, event_date)
@@ -524,7 +508,7 @@ if (month[1] == "NA") {
   pneumonia_to_date <- pneumonia_data |> 
     mutate(inc_mon_num = as.numeric(inc_mon),
            event_date_char = as.character(event_date)) |>
-    filter(inc_mon_num <= as.numeric(month[3])) |>
+    filter(inc_mon_num <= as.numeric(m[3])) |>
     select(first_name, last_name, event_date)
 
 }
@@ -557,7 +541,7 @@ inc_date <- as_tibble(str_split(aspiration_data$event_date, pattern = "-", n = 3
   
   aspiration_data$inc_mon <- inc_date$V2
 
-if (month[1] == "NA") {
+if (m[1] == "NA") {
   
   aspiration_to_date <- aspiration_data |> 
     select(first_name, last_name, event_date)
@@ -566,7 +550,7 @@ if (month[1] == "NA") {
   aspiration_to_date <- aspiration_data |> 
     mutate(inc_mon_num = as.numeric(inc_mon),
            event_date_char = as.character(event_date)) |>
-    filter(inc_mon_num <= as.numeric(month[3])) |>
+    filter(inc_mon_num <= as.numeric(m[3])) |>
     select(first_name, last_name, event_date)
 
 }
@@ -667,4 +651,3 @@ repeat_pneumonia_person_date |>
              conc_date = "Dates") 
 
 ```
-

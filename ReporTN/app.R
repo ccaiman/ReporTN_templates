@@ -7,7 +7,7 @@ library(tidyverse)
 
 ui <- fluidPage(
   
-  titlePanel("Reproducable Example"),
+  titlePanel("Reproduceable Example"),
   
   sidebarLayout(
     sidebarPanel(
@@ -16,16 +16,16 @@ ui <- fluidPage(
       selectInput(inputId = "rtype", 
                   label = "Select a report:", 
                   choices = c("Falls" = "1_falls.rmd",
-                              "Skin breakdown" = "3_skin_breakdown.rmd",
                               "Choking, Aspiration, Pneumonia" = "2_choking_aspiration_pneumonia.rmd",
+                              "Skin breakdown" = "3_skin_breakdown.rmd",
                               "Agency All Events" = "4_agencies.rmd",
                               "Agency Falls" = "5_agencies_falls.rmd")),
       conditionalPanel(
         "input.rtype.includes('1_falls.rmd')",
-        fileInput("files", HTML("Select files: <br/> 1. Census <br/> 2. Current year <br/> 3. Previous year"),
+        fileInput("files_1", HTML("Select files: <br/> 1. Census <br/> 2. Current year <br/> 3. Previous year"),
                   multiple = TRUE),
-        numericInput("year", "Report year:", value = Sys.Date() |> str_sub(1, 4)),
-        selectInput(inputId = 'month',
+        numericInput("year_1", "Report year:", value = Sys.Date() |> str_sub(1, 4)),
+        selectInput(inputId = 'month_1',
                     label = "Select a date range:",
                     choices = c('Q1' = "01, 02, 03",
                                 'Q2' = "04, 05, 06",
@@ -35,10 +35,10 @@ ui <- fluidPage(
       ),
       conditionalPanel(
         "input.rtype.includes('2_choking_aspiration_pneumonia.rmd')",
-        fileInput("files", HTML("Select files: <br/> 1. Census <br/> 2. Choking: current year <br/> 3. Aspiration: current year <br/> 4. Aspiration: previous year"),
+        fileInput("files_2", HTML("Select files: <br/> 1. Census <br/> 2. Choking: current year <br/> 3. Aspiration: current year <br/> 4. Aspiration: previous year"),
                   multiple = TRUE),
-        numericInput("year", "Report year:", value = Sys.Date() |> str_sub(1, 4)),
-        selectInput(inputId = 'month',
+        numericInput("year_2", "Report year:", value = Sys.Date() |> str_sub(1, 4)),
+        selectInput(inputId = 'month_2',
                     label = "Select a date range:",
                     choices = c('Q1' = "01, 02, 03",
                                 'Q2' = "04, 05, 06",
@@ -83,7 +83,8 @@ ui <- fluidPage(
     ),
     mainPanel(
       "some text",
-      reactable::reactableOutput('table2')
+      reactable::reactableOutput('table2'),
+      textOutput('text')
     )
   )
 )
@@ -97,12 +98,19 @@ server <- function(input, output, session) {
   
   observe({
     if (input$rtype == "1_falls.rmd") {
-      reactives$params_list <- list(census_path = input$files$datapath[1],
-                                    current_falls_path = input$files$datapath[2],
-                                    previous_falls_path = input$files$datapath[3],
+      reactives$params_list <- list(census_path = input$files_1$datapath[1],
+                                    current_falls_path = input$files_1$datapath[2],
+                                    previous_falls_path = input$files_1$datapath[3],
                                     other_path = NA,
-                                    year = input$year,
-                                    month = input$month)
+                                    year = input$year_1,
+                                    month = input$month_1)
+    } else if (input$rtype == "2_choking_aspiration_pneumonia.rmd") {
+      reactives$params_list <- list(census_path = input$files_2$datapath[1],
+                                    cho_path = input$files_2$datapath[2],
+                                    current_asp_path = input$files_2$datapath[3],
+                                    past_asp_path = input$files_2$datapath[4],
+                                    year = input$year_2,
+                                    month = input$month_2)
     }
   })
   
@@ -130,6 +138,10 @@ server <- function(input, output, session) {
     
     table <- tibble(values = reactives$params_list)
     reactable::reactable(table)
+  })
+  
+  output$text <- renderText({
+    input$rtype
   })
 }
 
