@@ -24,10 +24,6 @@ ui <- fluidPage(
         "input.rtype.includes('1_falls.rmd')",
         fileInput("files", HTML("Select files: <br/> 1. Census <br/> 2. Current year <br/> 3. Previous year"),
                   multiple = TRUE),
-        # fileInput("current falls", "Select the current file:",
-        #           multiple = TRUE),
-        # fileInput("previous falls", "Select the previous file:",
-        #           multiple = TRUE),
         numericInput("year", "Report year:", value = Sys.Date() |> str_sub(1, 4)),
         selectInput(inputId = 'month',
                     label = "Select a date range:",
@@ -39,9 +35,8 @@ ui <- fluidPage(
       ),
       conditionalPanel(
         "input.rtype.includes('2_choking_aspiration_pneumonia.rmd')",
-        fileInput("census", "Select the census file:"),
-        fileInput("current falls", "Select the current file:"),
-        fileInput("previous falls", "Select the previous file:"),
+        fileInput("files", HTML("Select files: <br/> 1. Census <br/> 2. Choking: current year <br/> 3. Aspiration: current year <br/> 4. Aspiration: previous year"),
+                  multiple = TRUE),
         numericInput("year", "Report year:", value = Sys.Date() |> str_sub(1, 4)),
         selectInput(inputId = 'month',
                     label = "Select a date range:",
@@ -50,6 +45,31 @@ ui <- fluidPage(
                                 'Q3' = "07, 08, 09",
                                 'Q4' = "10, 11, 12",
                                 'Annual' = 'NA'))
+      ),
+      conditionalPanel(
+        "input.rtype.includes('3_skin_breakdown.rmd')",
+        fileInput("files", HTML("Select files: <br/> 1. Census <br/> 2. Current year"),
+                  multiple = TRUE),
+        numericInput("year", "Report year:", value = Sys.Date() |> str_sub(1, 4)),
+        selectInput(inputId = 'month',
+                    label = "Select a date range:",
+                    choices = c('Q1' = "01, 02, 03",
+                                'Q2' = "04, 05, 06",
+                                'Q3' = "07, 08, 09",
+                                'Q4' = "10, 11, 12",
+                                'Annual' = 'NA'))
+      ),
+      conditionalPanel(
+        "input.rtype.includes('4_agencies.rmd')",
+        fileInput("files", HTML("Select files: <br/> 1. Census <br/> 2. Current choking <br/> 3. Current aspiration <br/> 4. Current skin <br/> 5. Current falls"),
+                  multiple = TRUE),
+        numericInput("year", "Report year:", value = Sys.Date() |> str_sub(1, 4))
+      ),
+      conditionalPanel(
+        "input.rtype.includes('5_agencies_falls.rmd')",
+        fileInput("files", HTML("Select files: <br/> 1. Census <br/> 2. Current falls"),
+                  multiple = TRUE),
+        numericInput("year", "Report year:", value = Sys.Date() |> str_sub(1, 4))
       ),
       br(),
       downloadButton(outputId = "report", label = "Generate Report:"),
@@ -63,25 +83,36 @@ ui <- fluidPage(
     ),
     mainPanel(
       "some text",
-      reactable::reactableOutput('table')
+      reactable::reactableOutput('table2')
     )
   )
 )
 
 
 server <- function(input, output, session) {
+  
+  reactives <- reactiveValues(
+    params_list = list()
+  )
+  
+  observe({
+    if (input$rtype == "1_falls.rmd") {
+      reactives$params_list <- list(census_path = input$files$datapath[1],
+                                    current_falls_path = input$files$datapath[2],
+                                    previous_falls_path = input$files$datapath[3],
+                                    other_path = NA,
+                                    year = input$year,
+                                    month = input$month)
+    }
+  })
+  
   output$report <- downloadHandler(
     filename = "Reprod_ex.docx",
     content = function(file) {
       
       rmarkdown::render(input$rtype, 
                         output_format = NULL, 
-                        params = list(census_path = input$files$datapath[1],
-                                      current_falls_path = input$files$datapath[2],
-                                      previous_falls_path = input$files$datapath[3],
-                                      other_path = NA,
-                                      year = input$year,
-                                      month = input$month),
+                        params = reactives$params_list,
                         #params = list(username = input$username),
                         output_file = file
                         )
@@ -94,7 +125,15 @@ server <- function(input, output, session) {
                     input = input$files$name)
     reactable::reactable(table)
     })
+  
+  output$table2 <- reactable::renderReactable({ 
+    
+    table <- tibble(values = reactives$params_list)
+    reactable::reactable(table)
+  })
 }
+
+
 
 # Run the application 
 shinyApp(ui = ui, server = server)
