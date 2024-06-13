@@ -8,6 +8,7 @@ params:
   past_asp_path: ""
   year: ""
   month: ""
+  rendered_by_shiny: FALSE
 ---
 
 ```{r setup, include=FALSE}
@@ -266,6 +267,9 @@ a_list4 |>
     count = "Count",
     percent = "Percent",
     )
+
+if (params$rendered_by_shiny)
+  shiny::setProgress(0.33)  # set progress to 33%
 ```
 
 ## Aspiration trend report
@@ -415,7 +419,8 @@ if (nrow(aspiration_data_report_months) == 0) {
     )
 }
 
-
+if (params$rendered_by_shiny)
+  shiny::setProgress(0.66)  # set progress to 66%
 ```
 
 ## Pneumonia trend report
@@ -650,4 +655,6 @@ repeat_pneumonia_person_date |>
   cols_label(events_person = "Events",
              conc_date = "Dates") 
 
+if (params$rendered_by_shiny)
+  shiny::setProgress(1)  # set progress to 100%
 ```

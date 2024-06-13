@@ -117,13 +117,18 @@ server <- function(input, output, session) {
   output$report <- downloadHandler(
     filename = "Reprod_ex.docx",
     content = function(file) {
+      withProgress(message = "Setting the tables...", {
+        rmarkdown::render(
+          input$rtype, 
+          output_format = NULL, 
+          params = append(reactives$params_list, list(rendered_by_shiny = TRUE)),
+          #params = list(username = input$username),
+          output_file = file,
+          envir = new.env(parent = globalenv())
+        )
+      })
       
-      rmarkdown::render(input$rtype, 
-                        output_format = NULL, 
-                        params = reactives$params_list,
-                        #params = list(username = input$username),
-                        output_file = file
-                        )
+      
       
     }
   )

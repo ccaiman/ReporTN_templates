@@ -8,6 +8,7 @@ params:
   other_path: ""
   year: ""
   month: ""
+  rendered_by_shiny: FALSE
 ---
 
 ```{r setup, include=FALSE}
@@ -219,6 +220,8 @@ gt(data = fall_data_report_months,
   rowname_col = "inc_mon_rep") |>
   cols_label(falls = "Count")
 
+if (params$rendered_by_shiny)
+  shiny::setProgress(0.5)  # set progress to 50%
 ```
 
 Affected age groups
@@ -615,4 +618,7 @@ repeat_falls_events_person_date |>
   gt(rowname_col = "name") |>
   cols_label(events_person = "Events",
              conc_date = "Dates") 
+
+if (params$rendered_by_shiny)
+  shiny::setProgress(1)  # set progress to 100%
 ```
