@@ -1,49 +1,41 @@
 ---
 title: "RTST Skin Breakdown Trend Report"
-format: docx
-execute: 
-  echo: false
-  warning: false
+output: word_document
 params:
   census_path: ""
   ski_path: ""
   year: ""
-  months: ""
+  month: ""
+  rendered_by_shiny: FALSE
 ---
 
-```{r, setup}
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 
 library(tidyverse)
 library(gt)
 library(readxl)
 library(reshape2)
 
-source("scripts/process_data.R")
-
-#path1 <- "E:/2023 - SKIN BREAKDOWN Event Tracking.xlsm"
-#path2 <- "E:/2023 Agency Census Listing.xlsx"
-#year = "2023"
-#month = c("04", "05", "06")
+source("./app_scripts/process_data.R")
 
 path1 <- params$ski_path
 path2 <- params$census_path
-year = params$year
-month = params$months
-
+y = params$year
+m = str_split(params$month, ", ", simplify = TRUE)[1,]
 ```
 
-```{r, report range}
-#| output: asis
+```{r report range, results='asis'}
 
-if (month[1] == "NA") {
+if (m[1] == "NA") {
   
   print(
-    str_glue("# {year} yearly skin breakdown events")
+    str_glue("# {y} yearly skin breakdown events")
     )
   
 } else {
   
-  quart <- tibble(month = month)
+  quart <- tibble(month = m)
   
   quart$quart <- case_match(
     quart$month,
@@ -62,14 +54,14 @@ if (month[1] == "NA") {
   )
   
   print(
-    str_glue("# {year} Q{quart$quart[1]} skin breakdown events")
+    str_glue("# {y} Q{quart$quart[1]} skin breakdown events")
     )
 }
 
 
 ```
 
-```{r, data import}
+```{r data import}
 
 skin_data <- import_event_data(
   path_str = path1,
@@ -102,11 +94,11 @@ census <- change_names(census)
 skin_data <- skin_data[,1:42]
 
 
-skin_data_report <- quarterly_report_months(skin_data)
+skin_data_report <- quarterly_report_months(skin_data, m = m, y = y)
 
 #census data prep
 
-key <- census_key(census)
+key <- census_key(census, m = m)
 
 # combine census data to the report
 
@@ -115,7 +107,7 @@ skin_data_report <- match_key(skin_data_report, key)
 
 Total skin breakdown events
 
-```{r, total events table}
+```{r total events table}
 
 skin_data_report_months <- skin_data_report |>
   count(inc_mon_rep, name = "breakdown")
@@ -132,11 +124,14 @@ skin_data_report_months |>
   gt(rowname_col = "inc_mon_rep") |>
   cols_label(breakdown = "Count")
 
+if (params$rendered_by_shiny)
+  shiny::setProgress(0.5)  # set progress to 50%
+
 ```
 
 Affected age groups
 
-```{r, ages}
+```{r ages}
 
 skin_data_report_age <- skin_data_report |>
   count(age_cat, name = "breakdown") 
@@ -181,7 +176,7 @@ age_report |>
 
 Therapy info
 
-```{r, therapies info}
+```{r therapies info}
 
 skin_data_report |>
   count(gen_info, name = "event") |>
@@ -193,7 +188,7 @@ skin_data_report |>
 
 Referrals made
 
-```{r, referral for}
+```{r referral for}
 
 skin_data_report |>
   count(referral_for, name = "event") |>
@@ -203,7 +198,7 @@ skin_data_report |>
 
 Positioning
 
-```{r, positioning}
+```{r positioning}
 
 skin_data_report |>
   count(positioning, name = "event") |>
@@ -214,7 +209,7 @@ skin_data_report |>
 
 Events by agency
 
-```{r, by agency}
+```{r by agency}
 
 agency_count <- skin_data_report |>
   count(agency, name = "event") 
@@ -269,7 +264,7 @@ agency_count |>
 
 Overall contributing factors
 
-```{r, overall factors}
+```{r overall factors}
 
 a_list4 |>
   group_by(value) |>
@@ -286,7 +281,7 @@ a_list4 |>
 
 Malnutrition
 
-```{r, malnutrition}
+```{r malnutrition}
 
 a_list <- str_split(skin_data_report$malnut, 
           pattern = ",",
@@ -317,7 +312,7 @@ a_list2 |>
 
 Skin breakdown type
 
-```{r, skin breakdown type}
+```{r skin breakdown type}
 
 
 a_list <- str_split(skin_data_report$skin_bd_type, 
@@ -346,7 +341,7 @@ a_list2 |>
 
 Ambulation
 
-```{r, mobility}
+```{r mobility}
 
 skin_data_report |>
   count(mobility) |>
@@ -357,8 +352,7 @@ skin_data_report |>
     )
 ```
 
-```{r, medications}
-#| eval: false
+```{r medications, eval=FALSE}
 
 a_list <- str_split(skin_data_report$meds, 
           pattern = ",",
@@ -389,7 +383,7 @@ a_list2 |>
 
 Contributing diagnoses
 
-```{r, diagnoses}
+```{r diagnoses}
 
 a_list <- str_split(skin_data_report$diag, 
           pattern = ",",
@@ -413,5 +407,7 @@ a_list2 |>
   cols_label(
     n = "Count"
     )
-```
 
+if (params$rendered_by_shiny)
+  shiny::setProgress(1)  # set progress to 100%
+```

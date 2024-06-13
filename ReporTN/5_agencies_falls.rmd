@@ -1,37 +1,30 @@
 ---
 title: "RTST Serious Injury Falls by Agency Trend Report"
-format: docx
-execute: 
-  echo: false
-  warning: false
+output: word_document
 params:
   census_path: ""
   falls_path: ""
   year: ""
+  rendered_by_shiny: FALSE
 ---
 
 ## Serious injury report - `r params$year` Fall events
 
-```{r, setup}
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
 library(tidyverse)
 library(gt)
 library(readxl)
 
-source("scripts/process_data.R")
-
-
-# path1 <- "E:/2023 - FALLS Event Tracking.xlsx"
-# path2 <- "E:/2023 Agency Census Listing.xlsx"
-# year = "2023"
-
+source("./app_scripts/process_data.R")
 
 path1 <- params$falls_path
 path2 <- params$census_path
-year <- params$year
-
+y <- params$year
 ```
 
-```{r, data import}
+```{r data import}
 
 ##import datasets
 #log data import
@@ -68,7 +61,7 @@ census <- change_names(census)
 
 ```
 
-```{r, data prep}
+```{r data prep}
 #census data prep
 regional_census <- as.integer(round(max(census$tot, na.rm = TRUE)))
 
@@ -193,7 +186,7 @@ fall_data_report2 <- match_key(fall_data_report, key)
 
 Regional average census: `r regional_census[1]`
 
-```{r, agency events}
+```{r agency events}
 
 cols = c("ac_behav", "adap_equip_fall", "both_ie", "extrinsic",       "fall_hist", "familiar" , "H_E", "intrinsic", "med_change", "hear_deficit",   "mobility", "obes", "prn_sed", "unfamiliar", "vis_deficit",     "pt_services",     "referred_pt", "falls_training", "no_falls_training", "current_fpp", "contrib_diag")
 
@@ -223,7 +216,7 @@ agency_factors <- fall_data_report2 |>
   )
 ```
 
-```{r, region events}
+```{r region events}
 
 region_factors <- fall_data_report2 |> 
   pivot_longer(
@@ -254,7 +247,7 @@ names(region_factors) <- c("factor",
 
 ```
 
-```{r, combine region and agency events}
+```{r combine region and agency events}
 
 factors <- left_join(agency_factors, 
                      region_factors, 
@@ -263,7 +256,7 @@ factors <- left_join(agency_factors,
 
 ```
 
-```{r, agency serious injury}
+```{r agency serious injury}
 
 #falls serious injury per agency
 agency_count_si <- fall_data_report2 |>
@@ -288,7 +281,7 @@ agency_factors_si <- fall_data_report2 |>
   )
 ```
 
-```{r, region serious injury}
+```{r region serious injury}
 
 region_factors_si <- fall_data_report2 |> 
   filter(ser_inj == "Yes") |>
@@ -327,7 +320,7 @@ factors_si <- left_join(agency_factors_si,
 
 ```
 
-```{r, combine events counts with serious injury counts}
+```{r combine events counts with serious injury counts}
 
 names(factors_si) <- c("agency", "factor", "incidence_si", 
                        "region_count", "region_falls", "region_census",
@@ -421,7 +414,7 @@ combined_factors3 <- left_join(combined_factors3, agency_rep,
                                  by = join_by(agency))
 ```
 
-```{r, table prep}
+```{r table prep}
 
 combined_factors3$sort <- case_match(
   combined_factors3$factor,
@@ -529,7 +522,7 @@ combined_factors5 <- combined_factors4 |>
 
 Factors for the East Region (1915C without ICF service program):
 
-```{r, east region factors}
+```{r east region factors}
 
 region_combined_factors |>
   arrange(sort) |>
@@ -547,6 +540,9 @@ region_combined_factors |>
       columns = c(region_count_si, region_si)
     )
   )
+
+if (params$rendered_by_shiny)
+  shiny::setProgress(0.5)  # set progress to 50%
 ```
 
 Factors by agency in the East Region (1915C without ICF service program):
@@ -583,5 +579,6 @@ combined_factors5 |>
     percent_si = "Agency % (SI)"
     )
 
+if (params$rendered_by_shiny)
+  shiny::setProgress(1)  # set progress to 50%
 ```
-

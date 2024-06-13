@@ -48,10 +48,10 @@ ui <- fluidPage(
       ),
       conditionalPanel(
         "input.rtype.includes('3_skin_breakdown.rmd')",
-        fileInput("files", HTML("Select files: <br/> 1. Census <br/> 2. Current year"),
+        fileInput("files_3", HTML("Select files: <br/> 1. Census <br/> 2. Current year"),
                   multiple = TRUE),
-        numericInput("year", "Report year:", value = Sys.Date() |> str_sub(1, 4)),
-        selectInput(inputId = 'month',
+        numericInput("year_3", "Report year:", value = Sys.Date() |> str_sub(1, 4)),
+        selectInput(inputId = 'month_3',
                     label = "Select a date range:",
                     choices = c('Q1' = "01, 02, 03",
                                 'Q2' = "04, 05, 06",
@@ -61,15 +61,15 @@ ui <- fluidPage(
       ),
       conditionalPanel(
         "input.rtype.includes('4_agencies.rmd')",
-        fileInput("files", HTML("Select files: <br/> 1. Census <br/> 2. Current choking <br/> 3. Current aspiration <br/> 4. Current skin <br/> 5. Current falls"),
+        fileInput("files_4", HTML("Select files: <br/> 1. Census <br/> 2. Current choking <br/> 3. Current aspiration <br/> 4. Current skin <br/> 5. Current falls"),
                   multiple = TRUE),
-        numericInput("year", "Report year:", value = Sys.Date() |> str_sub(1, 4))
+        numericInput("year_4", "Report year:", value = Sys.Date() |> str_sub(1, 4))
       ),
       conditionalPanel(
         "input.rtype.includes('5_agencies_falls.rmd')",
-        fileInput("files", HTML("Select files: <br/> 1. Census <br/> 2. Current falls"),
+        fileInput("files_5", HTML("Select files: <br/> 1. Census <br/> 2. Current falls"),
                   multiple = TRUE),
-        numericInput("year", "Report year:", value = Sys.Date() |> str_sub(1, 4))
+        numericInput("year_5", "Report year:", value = Sys.Date() |> str_sub(1, 4))
       ),
       br(),
       downloadButton(outputId = "report", label = "Generate Report:"),
@@ -111,6 +111,22 @@ server <- function(input, output, session) {
                                     past_asp_path = input$files_2$datapath[4],
                                     year = input$year_2,
                                     month = input$month_2)
+    } else if (input$rtype == "3_skin_breakdown.rmd") {
+      reactives$params_list <- list(census_path = input$files_3$datapath[1],
+                                    ski_path = input$files_3$datapath[2],
+                                    year = input$year_3,
+                                    month = input$month_3)
+    } else if (input$rtype == "4_agencies.rmd") {
+      reactives$params_list <- list(census_path = input$files_4$datapath[1],
+                                    cho_path = input$files_4$datapath[2],
+                                    asp_path = input$files_4$datapath[3],
+                                    ski_path = input$files_4$datapath[4],
+                                    falls_path = input$files_4$datapath[5],
+                                    year = input$year_4)
+    } else if (input$rtype == "5_agencies_falls.rmd") {
+      reactives$params_list <- list(census_path = input$files_5$datapath[1],
+                                    falls_path = input$files_5$datapath[2],
+                                    year = input$year_5)
     }
   })
   

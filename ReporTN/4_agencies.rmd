@@ -1,9 +1,6 @@
 ---
 title: "RTST Agency Trend Report of Event Types"
-format: docx
-execute: 
-  echo: false
-  warning: false
+output: word_document
 params:
   cho_path: ""
   asp_path: ""
@@ -11,35 +8,27 @@ params:
   falls_path: ""
   census_path: ""
   year: ""
+  rendered_by_shiny: FALSE
 ---
 
-```{r, setup}
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
 library(tidyverse)
 library(gt)
 library(readxl)
 
-source("scripts/process_data.R")
-
-
-# path1.1 <- "E:/2023 - CHOKING Event Tracking.xlsm"
-# path1.2 <- "E:/2023 - ASPIRATION - PNEUMONIA Event Tracking.xlsm"
-# path1.3 <- "E:/2023 - SKIN BREAKDOWN Event Tracking.xlsm"
-# path1.4 <- "E:/2023 - FALLS Event Tracking.xlsx"
-# path2 <- "E:/2023 Agency Census Listing.xlsx"
-#year = "2023"
+source("./app_scripts/process_data.R")
 
 path1.1 <- params$cho_path
 path1.2 <- params$asp_path
 path1.3 <- params$ski_path
 path1.4 <- params$falls_path
 path2 <- params$census_path
-year = params$year
-
-
-
+y = params$year
 ```
 
-```{r, data import}
+```{r data import}
 
 ##import datasets
 #log data import, choking
@@ -123,7 +112,7 @@ Regional average census: `r regional_census`
 
 Event counts for the East Region (1915C without ICF service program):
 
-```{r, Region events}
+```{r Region events}
 
 event_data_report2 <- left_join(event_data_report, region_data) |>
   group_by(event_type) |>
@@ -147,11 +136,13 @@ event_data_report2_region |>
     event_type_perc = "Region %"
     )
 
+if (params$rendered_by_shiny)
+  shiny::setProgress(0.5)  # set progress to 50%
 ```
 
 Event counts by agency in the East Region (1915C without ICF service program):
 
-```{r, Events by agency}
+```{r Events by agency}
 
 
 event_types <- event_data_report2 |> 
@@ -189,5 +180,6 @@ event_data_report3 |>
     agency_event_type_perc = "Agency %"
     )
 
+if (params$rendered_by_shiny)
+  shiny::setProgress(1)  # set progress to 100%
 ```
-
