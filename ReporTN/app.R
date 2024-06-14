@@ -7,12 +7,10 @@ library(tidyverse)
 
 ui <- fluidPage(
   
-  titlePanel("Reproduceable Example"),
+  titlePanel("ReporTN templates"),
   
   sidebarLayout(
     sidebarPanel(
-      textInput(inputId = "username", label = "User name:"),
-      tags$hr(),
       selectInput(inputId = "rtype", 
                   label = "Select a report:", 
                   choices = c("Falls" = "1_falls.rmd",
@@ -72,19 +70,34 @@ ui <- fluidPage(
         numericInput("year_5", "Report year:", value = Sys.Date() |> str_sub(1, 4))
       ),
       br(),
-      downloadButton(outputId = "report", label = "Generate Report:"),
       tags$hr(),
-      progressBar(
-        id = "pb",
-        value = 0,
-        title = "",
-        display_pct = TRUE
-      )
+      downloadButton(outputId = "report", label = "Generate Report"),
     ),
     mainPanel(
-      "some text",
-      reactable::reactableOutput('table2'),
-      textOutput('text')
+      tags$html(
+        tags$body(
+          p("This is a reporting tool to generate our standard reports on reportable events.\
+      The templates contain tables of descriptive and diagnostic statistics for the team to interpret and report."),
+          hr(),
+          "The sidepanel walks you through the steps to generate a report.",
+          br(),
+          HTML("<ul>\
+                  <li>\
+                    At the 'Select files:' step, please rename the files so they have a leading value (like 1_, 1-, or 1.) according to the numbered list.\
+                    Select each of the files you need, then press 'Open'.\
+                    The selection order doesn't matter but the leading numeric value in the file name does.\
+                  </li>\
+                  <li>\
+                    When everything looks right, press 'Generate Report'.\
+                    A progress bar will pop up in the lower-right corner.\
+                    A successful download will be a '.docx' file.\
+                    If there was a problem, the download is an empty '.html' file.\
+                  </li>\
+                </ul>")
+        )
+      )
+      #reactable::reactableOutput('table2'),
+      #textOutput('text')
     )
   )
 )
@@ -138,35 +151,31 @@ server <- function(input, output, session) {
           input$rtype, 
           output_format = NULL, 
           params = append(reactives$params_list, list(rendered_by_shiny = TRUE)),
-          #params = list(username = input$username),
           output_file = file,
           envir = new.env(parent = globalenv())
         )
       })
-      
-      
-      
     }
   )
-  output$table <- reactable::renderReactable({ 
-    
-    table <- tibble(datapath = input$files$datapath,
-                    input = input$files$name)
-    reactable::reactable(table)
-    })
   
-  output$table2 <- reactable::renderReactable({ 
-    
-    table <- tibble(values = reactives$params_list)
-    reactable::reactable(table)
-  })
-  
-  output$text <- renderText({
-    input$rtype
-  })
+# for troubleshooting
+  # output$table <- reactable::renderReactable({ 
+  #   
+  #   table <- tibble(datapath = input$files$datapath,
+  #                   input = input$files$name)
+  #   reactable::reactable(table)
+  #   })
+  # 
+  # output$table2 <- reactable::renderReactable({ 
+  #   
+  #   table <- tibble(values = reactives$params_list)
+  #   reactable::reactable(table)
+  # })
+  # 
+  # output$text <- renderText({
+  #   input$rtype
+  # })
 }
-
-
 
 # Run the application 
 shinyApp(ui = ui, server = server)
