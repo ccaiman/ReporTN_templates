@@ -6,6 +6,21 @@ library(shinyhttr)
 library(tidyverse)
 
 ui <- fluidPage(
+  tags$head(
+    tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")
+  ),
+  br(),
+  img(src = "tn_dda_logo.png", height = "75px"),
+  div(
+    class = 'quote',
+    HTML('<strong>Mission: </strong><i>To become the nation’s most person-centered and cost-effective\
+         state support system for people with intellectual and developmental disabilities.</i>')
+    ),
+  div(
+    class = 'quote',
+    HTML('<strong>Vision: </strong><i>Support all Tennesseans with intellectual and\
+         developmental disabilities to live the lives they envision for themselves.</i>')
+  ),
   
   titlePanel("ReporTN templates"),
   
