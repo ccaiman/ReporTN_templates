@@ -1,0 +1,660 @@
+---
+title: "RTST Choking, Aspiration, and Pneumonia Trend Report"
+output: word_document
+params:
+  census_path: ""
+  cho_path: ""
+  current_asp_path: ""
+  past_asp_path: ""
+  year: ""
+  month: ""
+  rendered_by_shiny: FALSE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+library(tidyverse)
+library(reshape2)
+library(gt)
+library(readxl)
+
+source("./app_scripts/process_data.R")
+
+path1.1 <-  params$cho_path
+path1.2 <- params$current_asp_path
+#path1.2 <- str_sub(path1.2, 2, nchar(path1.2) - 2)
+path1.2.2 <- params$past_asp_path
+#path1.2.2 <- str_sub(path1.2.2, 2, nchar(path1.2.2) - 2)
+path2 <- params$census_path
+y = params$year
+m = str_split(params$month, ", ", simplify = TRUE)[1,]
+
+```
+
+```{r report range, results='asis'}
+
+if (m[1] == "NA") {
+  
+  print(
+    str_glue("# {y} yearly choking, aspiration, pneumonia events")
+    )
+  
+} else {
+  
+  quart <- tibble(month = m)
+  
+  quart$quart <- case_match(
+    quart$month,
+    "01" ~ "1",
+    "02" ~ "1",
+    "03" ~ "1",
+    "04" ~ "2",
+    "05" ~ "2",
+    "06" ~ "2",
+    "07" ~ "3",
+    "08" ~ "3",
+    "09" ~ "3",
+    "10" ~ "4",
+    "11" ~ "4",
+    "12" ~ "4",
+  )
+  
+  print(
+    str_glue("# {y} Q{quart$quart[1]} choking, aspiration, pneumonia events")
+    )
+}
+
+```
+
+```{r data import}
+#log data import, choking
+choking_data <- import_event_data(
+  path_str = path1.1,
+  event_str = "choking_events"
+)
+
+#collapse subagencies into the parent agency name
+choking_data <- collapse_names(choking_data)
+
+
+#log data import, aspiration
+aspiration_data <- import_event_data(
+  path_str = path1.2,
+  event_str = "aspiration_events"
+)
+
+#collapse subagencies into the parent agency name
+aspiration_data <- collapse_names(aspiration_data)
+
+
+#log data import, pneumonia
+pneumonia_data <- import_event_data(
+  path_str = path1.2,
+  event_str = "pneumonia_events"
+)
+
+#collapse subagencies into the parent agency name
+pneumonia_data <- collapse_names(pneumonia_data)
+
+
+##census data import
+census_titles <- read_xlsx(path = ".titles/event_titles.xlsx",
+          sheet = "census",
+          skip = 0,
+          col_types = c("text", "text", "text", "text"))
+
+census <- read_xlsx(path = path2,
+                     sheet = 1,
+                     skip = 2,
+                     col_names = census_titles$clean,
+                     col_types = census_titles$type)
+
+census <- change_names(census)
+
+```
+
+```{r data prep}
+#select data and filter for quarterly months
+#choking
+choking_data <- choking_data[,1:60]
+
+choking_data_report <- quarterly_report_months(choking_data, m = m, y = y)
+
+#aspiration
+aspiration_data <- aspiration_data[,1:43]
+
+aspiration_data_report <- quarterly_report_months(aspiration_data, m = m, y = y)
+
+#pneumonia
+pneumonia_data <- pneumonia_data[,1:14]
+
+pneumonia_data_report <- quarterly_report_months(pneumonia_data, m = m, y = y)
+
+#census data prep
+key <- census_key(census, m = m)
+
+#match census data to reportable events
+choking_data_report <- match_key(choking_data_report, key)
+
+
+aspiration_data_report <- match_key(aspiration_data_report, key)
+
+
+pneumonia_data_report <- match_key(pneumonia_data_report, key)
+```
+
+## Choking trend report
+
+Total choking events
+
+```{r total choking table}
+
+choking_data_report_months <- choking_data_report |>
+  count(inc_mon_rep, name = "event")
+
+choking_data_report_months2 <- choking_data_report |>
+  select(inc_mon_rep, inc_mon_num)
+
+choking_data_report_months <- unique(left_join(choking_data_report_months, choking_data_report_months2) |>
+  arrange(inc_mon_num) |>
+  select(-inc_mon_num))
+
+choking_data_report_months |>
+  rbind(c("Total", nrow(choking_data_report))) |>
+  gt(rowname_col = "inc_mon_rep") |>
+  cols_label(event = "Count")
+
+```
+
+Affected age groups
+
+```{r choking ages}
+
+choking_data_report |>
+  count(age_cat, name = "event") |>
+  gt(rowname_col = "age_cat") |>
+  cols_label(event = "Count") 
+```
+
+Current therapies
+
+```{r choking current therapies}
+
+choking_data_report |>
+  count(current_services, name = "event") |>
+  gt(rowname_col = "current_services") |>
+  cols_label(event = "Count")
+```
+
+Referrals made
+
+```{r referral for choking}
+
+choking_data_report |>
+  count(referral_for, name = "choking") |>
+  gt(rowname_col = "referral_for") |>
+  cols_label(choking = "Count")
+```
+
+Incidences by agency
+
+```{r choking event by agency}
+
+agency_count <- choking_data_report |>
+  count(agency, name = "event") 
+
+agency_census <- unique(choking_data_report |> select(agency, cen_mean))
+
+agency_count <- left_join(agency_count, agency_census) 
+
+#process factors
+a_list <- str_split(choking_data_report$contrib_fact, 
+          pattern = ",",
+          n = Inf, 
+          simplify = TRUE)
+
+a_list <- data.frame(a_list)
+
+a_list$agency <- choking_data_report$agency
+a_list2 <- drop_na(melt(a_list, id.vars = "agency")) |>
+  select(!variable)
+
+a_list2$value <- str_trim(a_list2$value)
+
+a_list3 <- a_list2 |>
+  count(agency, value) |>
+  filter(value != "") |>
+  mutate(
+    factor_report = paste0(value, "(", n, ")")
+  )
+
+a_list4 <- a_list3 |>
+  group_by(agency) |>
+  arrange(desc(n)) |>
+  mutate(cont_fact_report = str_flatten(factor_report, collapse = ", "))
+
+agency_report <- a_list4 |>
+  select(agency, cont_fact_report)
+
+agency_count <- unique(left_join(agency_count, agency_report)) |>
+  mutate(percent = round(event/cen_mean*100, 1))
+
+agency_count |>
+  arrange(desc(percent)) |>
+  select(agency, cen_mean, event, percent, cont_fact_report) |>
+  gt(rowname_col = "agency") |>
+  cols_label(
+    cen_mean = "Census",
+    event = "Events",
+    percent = "Percent",
+    cont_fact_report = "Contributing factors"
+    )
+```
+
+Overall contributing factors
+
+```{r overall factors choking}
+
+a_list4 |>
+  group_by(value) |>
+  count(value, name = "count") |>
+  mutate(percent = round(count/nrow(choking_data_report)*100, 1)) |>
+  arrange(desc(percent)) |> 
+  ungroup() |>
+  gt(rowname_col = "value") |>
+  cols_label(
+    count = "Count",
+    percent = "Percent",
+    )
+
+if (params$rendered_by_shiny)
+  shiny::setProgress(0.33)  # set progress to 33%
+```
+
+## Aspiration trend report
+
+Total aspiration events
+
+```{r aspiration total}
+
+aspiration_data_report_months <- aspiration_data_report |>
+  count(inc_mon_rep, name = "event")
+
+aspiration_data_report_months2 <- aspiration_data_report |>
+  select(inc_mon_rep, inc_mon_num)
+
+aspiration_data_report_months <- unique(left_join(aspiration_data_report_months, aspiration_data_report_months2) |>
+  arrange(inc_mon_num) |>
+  select(-inc_mon_num))
+
+if (nrow(aspiration_data_report_months) == 0) {
+  print("No events were reported")
+} else {
+  aspiration_data_report_months |>
+  rbind(c("Total", nrow(aspiration_data_report))) |>
+  gt(rowname_col = "inc_mon_rep") |>
+  cols_label(event = "Count")
+}
+
+
+```
+
+Affected age groups
+
+```{r aspiration age groups}
+
+
+aspiration_data_report |>
+  count(age_cat, name = "event") |>
+  gt(rowname_col = "age_cat") |>
+  cols_label(event = "Count") 
+
+```
+
+Current therapies
+
+```{r aspiration therapies}
+
+aspiration_data_report |>
+  count(current_services, name = "event") |>
+  gt(rowname_col = "current_services") |>
+  cols_label(event = "Count")
+```
+
+Referrals made
+
+```{r aspiration referrals}
+
+if (nrow(aspiration_data_report_months) == 0) {
+  print("No events were reported")
+} else {
+  aspiration_data_report |>
+  count(referral_for, name = "event") |>
+  gt(rowname_col = "referral_for") |>
+  cols_label(event = "Count")
+}
+
+
+```
+
+Incidences by agency
+
+```{r aspiration event by agency}
+
+agency_count_asp <- aspiration_data_report |>
+  count(agency, name = "event") 
+
+agency_census_asp <- unique(aspiration_data_report |> select(agency, cen_mean))
+
+agency_count_asp <- left_join(agency_count_asp, agency_census_asp) 
+
+if (nrow(aspiration_data_report_months) == 0) {
+  print("No events were reported")
+} else {
+  #process factors
+a_list_asp <- str_split(aspiration_data_report$contrib_fact, 
+          pattern = ",",
+          n = Inf, 
+          simplify = TRUE)
+
+a_list_asp <- data.frame(a_list_asp)
+
+a_list_asp$agency <- aspiration_data_report$agency
+a_list2_asp <- drop_na(melt(a_list_asp, id.vars = "agency")) |>
+  select(!variable)
+
+a_list2_asp$value <- str_trim(a_list2_asp$value)
+
+a_list3_asp <- a_list2_asp |>
+  count(agency, value) |>
+  filter(value != "") |>
+  mutate(
+    factor_report = paste0(value, "(", n, ")")
+  )
+
+a_list4_asp <- a_list3_asp |>
+  group_by(agency) |>
+  arrange(desc(n)) |>
+  mutate(cont_fact_report = str_flatten(factor_report, collapse = ", "))
+
+agency_report_asp <- a_list4_asp |>
+  select(agency, cont_fact_report)
+
+agency_count_asp <- unique(left_join(agency_count_asp, agency_report_asp)) |>
+  mutate(percent = round(event/cen_mean*100, 1))
+
+agency_count_asp |>
+  arrange(desc(percent)) |>
+  select(agency, cen_mean, event, percent, cont_fact_report) |>
+  gt(rowname_col = "agency") |>
+  cols_label(
+    cen_mean = "Census",
+    event = "Events",
+    percent = "Percent",
+    cont_fact_report = "Contributing factors"
+    )
+}
+
+
+```
+
+Overall contributing factors
+
+```{r overall factors aspiration}
+
+if (nrow(aspiration_data_report_months) == 0) {
+  print("No events were reported")
+} else {
+  a_list4_asp |>
+  group_by(value) |>
+  count(value, name = "count") |>
+  mutate(percent = round(count/nrow(choking_data_report)*100, 1)) |>
+  arrange(desc(percent)) |> 
+    ungroup() |>
+  gt(rowname_col = "value") |>
+  cols_label(
+    count = "Count",
+    percent = "Percent",
+    )
+}
+
+if (params$rendered_by_shiny)
+  shiny::setProgress(0.66)  # set progress to 66%
+```
+
+## Pneumonia trend report
+
+Total pneumonia events
+
+```{r pneumonia total}
+
+pneumonia_data_report_months <- pneumonia_data_report |>
+  count(inc_mon_rep, name = "event")
+
+pneumonia_data_report_months2 <- pneumonia_data_report |>
+  select(inc_mon_rep, inc_mon_num)
+
+pneumonia_data_report_months <- unique(left_join(pneumonia_data_report_months, pneumonia_data_report_months2) |>
+  arrange(inc_mon_num) |>
+  select(-inc_mon_num))
+
+if (nrow(pneumonia_data_report_months) == 0) {
+  print("No events were reported")
+} else {
+  pneumonia_data_report_months |>
+  rbind(c("Total", nrow(pneumonia_data_report))) |>
+  gt(rowname_col = "inc_mon_rep") |>
+  cols_label(event = "Count")
+}
+```
+
+Affected age groups
+
+```{r pneumonia age groups}
+
+pneumonia_data_report$age_cat <- cut_interval(pneumonia_data_report$age, length = 10, right = FALSE)
+
+pneumonia_data_report$age_cat <- recode(pneumonia_data_report$age_cat,
+                                   "[0,10)" = "20s",
+                                   "[10,20)" = "20s",
+                                   "[20,30)" = "20s",
+                                   "[30,40)" = "30s",
+                                   "[40,50)" = "40s",
+                                   "[50,60)" = "50s",
+                                   "[60,70)" = "60s",
+                                   "[70,80)" = "70s",
+                                   "[70,80]" = "70s",
+                                   "[80,90)" = "80s",
+                                   "[80,90]" = "80s",
+                                   "[90,100)" = "80s",
+                                   "[90,100]" = "80s")
+
+pneumonia_data_report |>
+  count(age_cat, name = "event") |>
+  gt(rowname_col = "age_cat") |>
+  cols_label(event = "Count") 
+```
+
+Repeat event dates of pneumonia and aspiration from names of people affected by pneumonia or aspiration this quarter.
+
+The search range includes the current year to date (up to the current quarter) and the previous year (Q1-Q4 from last year).
+
+```{r pneumonia repeat episodes}
+
+#names of people from this quarter
+pneumonia_names <- unique(pneumonia_data_report |>
+  select(first_name, last_name, dob))
+
+aspiration_names <- unique(aspiration_data_report |>
+  select(first_name, last_name, dob))
+
+#remove duplicate names
+pneumonia_names <- anti_join(pneumonia_names, aspiration_names)
+
+combined_names <- bind_rows(pneumonia_names, aspiration_names)
+
+combined_names_name <- as.data.frame(str_split(combined_names$last_name, pattern = ",", simplify = TRUE))
+
+combined_names$last_name <- combined_names_name$V1
+
+#events from year-to-date
+inc_date <- as_tibble(str_split(pneumonia_data$event_date, pattern = "-", n = 3, simplify = T))
+  
+  pneumonia_data$inc_mon <- inc_date$V2
+
+if (m[1] == "NA") {
+  
+  pneumonia_to_date <- pneumonia_data |>
+    select(first_name, last_name, event_date)
+  
+} else {
+  
+  pneumonia_to_date <- pneumonia_data |> 
+    mutate(inc_mon_num = as.numeric(inc_mon),
+           event_date_char = as.character(event_date)) |>
+    filter(inc_mon_num <= as.numeric(m[3])) |>
+    select(first_name, last_name, event_date)
+
+}
+
+#import last year data
+pneumonia_data_last_year <- import_event_data(
+  path_str = path1.2.2,
+  event_str = "pneumonia_events"
+)
+
+
+pneumonia_data_last_year$event_date <- as.Date(substr(pneumonia_data_last_year$event_date, 1, 10))
+
+pneumonia_data_last_year <- pneumonia_data_last_year |>
+  mutate(
+    event_date_char = as.character(event_date)
+  )
+
+pneumonia_data_last_year_na <- is.na(pneumonia_data_last_year$last_name)
+
+pneumonia_data_last_year <- pneumonia_data_last_year[!pneumonia_data_last_year_na,]
+
+pneumonia_data_last_year <- pneumonia_data_last_year |>
+  select(first_name, last_name, event_date)
+
+
+##we also want to bring in the aspiration-pneumonia events
+#events from year-to-date
+inc_date <- as_tibble(str_split(aspiration_data$event_date, pattern = "-", n = 3, simplify = T))
+  
+  aspiration_data$inc_mon <- inc_date$V2
+
+if (m[1] == "NA") {
+  
+  aspiration_to_date <- aspiration_data |> 
+    select(first_name, last_name, event_date)
+} else {
+  
+  aspiration_to_date <- aspiration_data |> 
+    mutate(inc_mon_num = as.numeric(inc_mon),
+           event_date_char = as.character(event_date)) |>
+    filter(inc_mon_num <= as.numeric(m[3])) |>
+    select(first_name, last_name, event_date)
+
+}
+  
+
+
+if (nrow(aspiration_to_date) == 0) {
+    print("There were no repeated events this year to date for people affected by aspiration or pneumonia this quarter")
+}
+
+#events from last year
+aspiration_data_last_year <- import_event_data(
+  path_str = path1.2.2,
+  event_str = "aspiration_events"
+)
+
+
+aspiration_data_last_year$event_date <- as.Date(substr(aspiration_data_last_year$event_date, 1, 10))
+
+aspiration_data_last_year_na <- is.na(aspiration_data_last_year$last_name)
+
+aspiration_data_last_year <- aspiration_data_last_year[!aspiration_data_last_year_na,]
+
+aspiration_data_last_year <- aspiration_data_last_year |>
+  select(first_name, last_name, event_date)
+
+if (nrow(aspiration_data_last_year) == 0) {
+    print("There were no previous events last year for people affected by aspiration or pneumonia this quarter")
+}
+
+
+if (nrow(aspiration_to_date) > 0 & nrow(aspiration_data_last_year) > 0) {
+
+  asp_pne_last_year_to_date <- bind_rows(aspiration_to_date, aspiration_data_last_year) |>
+  mutate(event_date_char = paste0(event_date, " (asp)"))
+
+  pneumonia_last_year_to_date <- bind_rows(pneumonia_to_date, pneumonia_data_last_year, asp_pne_last_year_to_date) |>
+  mutate(event_date_char = as.character(event_date))
+
+} else if (nrow(aspiration_to_date) > 0 & nrow(aspiration_data_last_year) == 0) {
+
+  asp_pne_last_year_to_date <- bind_rows(aspiration_to_date) |>
+  mutate(event_date_char = paste0(event_date, " (asp)"))
+
+  pneumonia_last_year_to_date <- bind_rows(pneumonia_to_date, pneumonia_data_last_year, asp_pne_last_year_to_date) |>
+  mutate(event_date_char = as.character(event_date))
+
+} else if (nrow(aspiration_to_date) == 0 & nrow(aspiration_data_last_year) > 0) {
+
+  asp_pne_last_year_to_date <- bind_rows(aspiration_data_last_year) |>
+  mutate(event_date_char = paste0(event_date, " (asp)"))
+
+  pneumonia_last_year_to_date <- bind_rows(pneumonia_to_date, pneumonia_data_last_year, asp_pne_last_year_to_date) |>
+  mutate(event_date_char = as.character(event_date))
+
+} else {
+
+  pneumonia_last_year_to_date <- bind_rows(pneumonia_to_date, pneumonia_data_last_year) |>
+  mutate(event_date_char = as.character(event_date))
+
+}
+
+#remove duplicate events
+repeat_asp_pne2 <- anti_join(pneumonia_last_year_to_date |> select(-event_date_char),
+                             asp_pne_last_year_to_date |> select(-event_date_char)) |> 
+  mutate(
+    event_date_char = as.character(event_date)
+  )
+
+repeat_asp_pne <- bind_rows(repeat_asp_pne2, asp_pne_last_year_to_date)
+
+repeat_asp_pne_name <- as.data.frame(str_split(repeat_asp_pne$last_name, pattern = ",", simplify = TRUE))
+
+repeat_asp_pne$last_name <- repeat_asp_pne_name$V1
+
+#combine non-duplicated names with events
+repeat_pneumonia <- inner_join(repeat_asp_pne, combined_names) |>
+  mutate(name = paste(first_name, last_name, sep = " "))
+
+repeat_pneumonia_person <- repeat_pneumonia |>
+  count(name, name = "events_person")
+
+repeat_pneumonia_date <- repeat_pneumonia |>
+  group_by(name) |>
+  arrange(event_date) |>
+  mutate(conc_date = str_flatten(event_date_char, collapse = ", ")) |>
+  select(first_name, last_name, dob, conc_date)
+
+repeat_pneumonia_person_date <- left_join(repeat_pneumonia_person,
+                                          repeat_pneumonia_date) |>
+  filter(events_person > 1)
+
+repeat_pneumonia_person_date |>
+  distinct(name, events_person, conc_date) |>
+  arrange(desc(events_person)) |>
+  gt(rowname_col = "name") |>
+  cols_label(events_person = "Events",
+             conc_date = "Dates") 
+
+if (params$rendered_by_shiny)
+  shiny::setProgress(1)  # set progress to 100%
+```

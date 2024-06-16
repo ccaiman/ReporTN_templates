@@ -1,0 +1,413 @@
+---
+title: "RTST Skin Breakdown Trend Report"
+output: word_document
+params:
+  census_path: ""
+  ski_path: ""
+  year: ""
+  month: ""
+  rendered_by_shiny: FALSE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+library(tidyverse)
+library(gt)
+library(readxl)
+library(reshape2)
+
+source("./app_scripts/process_data.R")
+
+path1 <- params$ski_path
+path2 <- params$census_path
+y = params$year
+m = str_split(params$month, ", ", simplify = TRUE)[1,]
+```
+
+```{r report range, results='asis'}
+
+if (m[1] == "NA") {
+  
+  print(
+    str_glue("# {y} yearly skin breakdown events")
+    )
+  
+} else {
+  
+  quart <- tibble(month = m)
+  
+  quart$quart <- case_match(
+    quart$month,
+    "01" ~ "1",
+    "02" ~ "1",
+    "03" ~ "1",
+    "04" ~ "2",
+    "05" ~ "2",
+    "06" ~ "2",
+    "07" ~ "3",
+    "08" ~ "3",
+    "09" ~ "3",
+    "10" ~ "4",
+    "11" ~ "4",
+    "12" ~ "4",
+  )
+  
+  print(
+    str_glue("# {y} Q{quart$quart[1]} skin breakdown events")
+    )
+}
+
+
+```
+
+```{r data import}
+
+skin_data <- import_event_data(
+  path_str = path1,
+  event_str = "skin_events"
+)
+
+
+#collapse subagencies into the parent agency name
+skin_data <- collapse_names(skin_data)
+
+##census data import
+
+census_titles <- read_xlsx(path = ".titles/event_titles.xlsx",
+          sheet = "census",
+          skip = 0,
+          col_types = c("text", "text", "text", "text"))
+
+census <- read_xlsx(path = path2,
+                     sheet = 1,
+                     skip = 2,
+                     col_names = census_titles$clean,
+                     col_types = census_titles$type)
+
+census <- change_names(census)
+
+
+##prepare and clean the datasets
+#log data prep
+
+skin_data <- skin_data[,1:42]
+
+
+skin_data_report <- quarterly_report_months(skin_data, m = m, y = y)
+
+#census data prep
+
+key <- census_key(census, m = m)
+
+# combine census data to the report
+
+skin_data_report <- match_key(skin_data_report, key)
+```
+
+Total skin breakdown events
+
+```{r total events table}
+
+skin_data_report_months <- skin_data_report |>
+  count(inc_mon_rep, name = "breakdown")
+
+skin_data_report_months2 <- skin_data_report |>
+  select(inc_mon_rep, inc_mon_num)
+
+skin_data_report_months <- unique(left_join(skin_data_report_months, skin_data_report_months2) |>
+  arrange(inc_mon_num) |>
+  select(-inc_mon_num))
+
+skin_data_report_months |>
+  rbind(c("Total", nrow(skin_data_report))) |>
+  gt(rowname_col = "inc_mon_rep") |>
+  cols_label(breakdown = "Count")
+
+if (params$rendered_by_shiny)
+  shiny::setProgress(0.5)  # set progress to 50%
+
+```
+
+Affected age groups
+
+```{r ages}
+
+skin_data_report_age <- skin_data_report |>
+  count(age_cat, name = "breakdown") 
+
+#process factors by age category
+a_list <- str_split(skin_data_report$contrib_fact, 
+          pattern = ",",
+          n = Inf, 
+          simplify = TRUE)
+
+a_list <- data.frame(a_list)
+
+a_list$age_cat <- skin_data_report$age_cat
+a_list2 <- drop_na(melt(a_list, id.vars = "age_cat")) |>
+  select(!variable)
+
+a_list2$value <- str_trim(a_list2$value)
+
+a_list3 <- a_list2 |>
+  count(age_cat, value) |>
+  filter(value != "") |>
+  mutate(
+    factor_report = paste0(value, "(", n, ")")
+  )
+
+a_list4 <- a_list3 |>
+  group_by(age_cat) |>
+    arrange(desc(n)) |>
+  mutate(cont_fact_report = str_flatten(factor_report, collapse = ", "))
+
+age_category_report <- unique(a_list4 |>
+  select(age_cat, cont_fact_report) |>
+    arrange(age_cat))
+
+age_report <- left_join(skin_data_report_age, age_category_report)
+
+age_report |>
+  gt(rowname_col = "age_cat") |>
+  cols_label(breakdown = "Count",
+             cont_fact_report = "Contributing factors by age") 
+```
+
+Therapy info
+
+```{r therapies info}
+
+skin_data_report |>
+  count(gen_info, name = "event") |>
+  gt(rowname_col = "current_services") |>
+  cols_label(event = "Count",
+             gen_info = "Services info")
+
+```
+
+Referrals made
+
+```{r referral for}
+
+skin_data_report |>
+  count(referral_for, name = "event") |>
+  gt(rowname_col = "referral_for") |>
+  cols_label(event = "Count")
+```
+
+Positioning
+
+```{r positioning}
+
+skin_data_report |>
+  count(positioning, name = "event") |>
+  arrange(desc(event)) |>
+  gt(rowname_col = "positioning") |>
+  cols_label(event = "Count")
+```
+
+Events by agency
+
+```{r by agency}
+
+agency_count <- skin_data_report |>
+  count(agency, name = "event") 
+
+agency_census <- unique(skin_data_report |> select(agency, cen_mean))
+
+agency_count <- left_join(agency_count, agency_census) 
+
+#process factors
+a_list <- str_split(skin_data_report$contrib_fact, 
+          pattern = ",",
+          n = Inf, 
+          simplify = TRUE)
+
+a_list <- data.frame(a_list)
+
+a_list$agency <- skin_data_report$agency
+a_list2 <- drop_na(melt(a_list, id.vars = "agency")) |>
+  select(!variable)
+
+a_list2$value <- str_trim(a_list2$value)
+
+a_list3 <- a_list2 |>
+  count(agency, value) |>
+  filter(value != "") |>
+  mutate(
+    factor_report = paste0(value, "(", n, ")")
+  )
+
+a_list4 <- a_list3 |>
+  group_by(agency) |>
+  arrange(desc(n)) |>
+  mutate(cont_fact_report = str_flatten(factor_report, collapse = ", "))
+
+agency_report <- a_list4 |>
+  select(agency, cont_fact_report)
+
+agency_count <- unique(left_join(agency_count, agency_report)) |>
+  mutate(percent = round(event/cen_mean*100, 1))
+
+agency_count |>
+  arrange(desc(percent)) |>
+  select(agency, cen_mean, event, percent, cont_fact_report) |>
+  gt(rowname_col = "agency") |>
+  cols_label(
+    cen_mean = "Census",
+    event = "Events",
+    percent = "Percent",
+    cont_fact_report = "Contributing factors"
+    )
+```
+
+Overall contributing factors
+
+```{r overall factors}
+
+a_list4 |>
+  group_by(value) |>
+  count(value, name = "count") |>
+  mutate(percent = round(count/nrow(skin_data_report)*100, 1)) |>
+  arrange(desc(percent)) |> 
+  ungroup() |>
+  gt(rowname_col = "value") |>
+  cols_label(
+    count = "Count",
+    percent = "Percent",
+    )
+```
+
+Malnutrition
+
+```{r malnutrition}
+
+a_list <- str_split(skin_data_report$malnut, 
+          pattern = ",",
+          n = Inf, 
+          simplify = TRUE)
+
+a_list <- data.frame(a_list) |>
+  select(!X1)
+
+a_list$id <- 1:nrow(skin_data_report)
+a_list2 <- drop_na(melt(a_list, id.vars = "id")) |>
+  select(!variable)
+
+a_list2$value <- str_trim(a_list2$value)
+
+
+a_list2 |>
+  count(value) |>
+  filter(value != "") |>
+  arrange(desc(n)) |>
+  gt(rowname_col = "value") |>
+  cols_label(
+    n = "Count"
+    )
+  
+
+```
+
+Skin breakdown type
+
+```{r skin breakdown type}
+
+
+a_list <- str_split(skin_data_report$skin_bd_type, 
+          pattern = ",",
+          n = Inf, 
+          simplify = TRUE)
+
+a_list <- data.frame(a_list) 
+
+a_list$id <- 1:nrow(skin_data_report)
+a_list2 <- drop_na(melt(a_list, id.vars = "id")) |>
+  select(!variable)
+
+a_list2$value <- str_trim(a_list2$value)
+
+
+a_list2 |>
+  count(value) |>
+  filter(value != "") |>
+  arrange(desc(n)) |>
+  gt(rowname_col = "value") |>
+  cols_label(
+    n = "Count"
+    )
+```
+
+Ambulation
+
+```{r mobility}
+
+skin_data_report |>
+  count(mobility) |>
+  arrange(desc(n)) |>
+  gt(rowname_col = "mobility") |>
+  cols_label(
+    n = "Count"
+    )
+```
+
+```{r medications, eval=FALSE}
+
+a_list <- str_split(skin_data_report$meds, 
+          pattern = ",",
+          n = Inf, 
+          simplify = TRUE)
+
+a_list <- data.frame(a_list) 
+
+a_list$id <- 1:nrow(skin_data_report)
+a_list2 <- drop_na(melt(a_list, id.vars = "id")) |>
+  select(!variable)
+
+a_list2$value <- str_trim(a_list2$value)
+
+a_list2 <- a_list2 |> 
+  filter(value != "") |> 
+  drop_na()
+
+a_list2 |>
+  count(value) |>
+  filter(value != "") |>
+  arrange(desc(n)) |>
+  gt(rowname_col = "value") |>
+  cols_label(
+    n = "Count"
+    )
+```
+
+Contributing diagnoses
+
+```{r diagnoses}
+
+a_list <- str_split(skin_data_report$diag, 
+          pattern = ",",
+          n = Inf, 
+          simplify = TRUE)
+
+a_list <- data.frame(a_list) 
+
+a_list$id <- 1:nrow(skin_data_report)
+a_list2 <- drop_na(melt(a_list, id.vars = "id")) |>
+  select(!variable)
+
+a_list2$value <- str_trim(a_list2$value)
+
+
+a_list2 |>
+  count(value) |>
+  filter(value != "") |>
+  arrange(desc(n)) |>
+  gt(rowname_col = "value") |>
+  cols_label(
+    n = "Count"
+    )
+
+if (params$rendered_by_shiny)
+  shiny::setProgress(1)  # set progress to 100%
+```
