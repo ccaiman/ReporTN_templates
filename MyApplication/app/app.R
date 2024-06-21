@@ -1,4 +1,5 @@
-pandoc <- file.path(getwd(), "dist/pandoc-3.2")
+pandoc <- file.path(getwd(), "dist/", list.files(path = "dist", pattern = "pandoc")[1])
+
 Sys.setenv(PATH = pandoc)
 
 # app launching code, e.g.:
