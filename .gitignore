@@ -11,5 +11,5 @@ R-Portable*/
 library/
 log/
 pandoc*/
-.exe
-.zip
+MyApplication/*.exe
+MyApplication/*.zip

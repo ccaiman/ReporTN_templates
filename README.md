@@ -37,17 +37,32 @@ tables that would typically be done completely within Excel.
 
 # Function
 
-The repo supports two ways to generate reports: 1) by R Shiny app UI and
-2) at the command line interface:
+The repo supports three methods to generate reports: by 1) a
+containerized R Shiny app, 2) R Shiny app with R and RStudio, and 3)
+Quarto at the command line interface.
 
-## 1) R Shiny App with R Markdown
+## Method 1) R Shiny app with DesktopDeployR
 
-The app (`ReporTN/app.R`) uses `.rmd` files to make reports. The app
-user interface walks through the steps to make a report.
+A containerized app can be used to generate reports using the
+[DesktopDeployR](https://github.com/wleepang/DesktopDeployR) framework.
+This method is the easiest because it doesn’t require a full
+installation of R/R Studio and runs discretely without you having to
+explicitly open other software. To use the app on a local server,
+Download the `MyApplication` folder and install
+[R-portable](https://sourceforge.net/projects/rportable/) and
+[pandoc](https://github.com/jgm/pandoc/releases) into
+`MyApplication/dist`. You can contact me for an installer of a complete
+`MyApplication` folder. Open the `.bat` file and the app will open in a
+browser window.
 
 ![The app UI](app_screenshot.png)
 
-## 2) CLI with Quarto
+## Method 2) R Shiny App with R Markdown
+
+The app (`ReporTN/app.R`) uses `.rmd` files to make reports. Within R
+Studio, navigate to `ReporTN/app.R` and run the app.
+
+## Method 3) CLI with Quarto
 
 The command line interface uses `.qmd` files to make reports. Update
 parameters in `.yml` files (in the `params` folder) for source data and
@@ -79,10 +94,14 @@ quarto render 1_falls.qmd --execute-params params/1_fall.yml
 
 Check these criteria before using report templates.
 
+## All methods:
+
 1.  Flat files with source data (`.xlsx`/`.xlsm`) should have the same
     column arrangements and data types as indicated in
     `.titles/event_titles.xlsx`. If necessary, rearrange the source data
     rather than modifying the `event_titles.xlsx` file.
+
+## Methods 2 and 3:
 
 2.  Have R and [R
     Studio](https://rstudio-education.github.io/hopr/starting.html "Installing R and RStudio")
