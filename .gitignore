@@ -5,8 +5,11 @@
 .docx
 
 /.quarto/
-/MyApplication/dist/R-Portable
-/MyApplication/dist/pandoc-3.2
-/MyApplication/app/library
-/MyApplication/.exe
-/MyApplication/.zip
+
+VERSION
+R-Portable*/
+library/
+log/
+pandoc*/
+.exe
+.zip
