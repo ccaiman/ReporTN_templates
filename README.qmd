@@ -26,7 +26,7 @@ The repo supports three methods to generate reports: by 1) a containerized R Shi
 
 ## Method 1) R Shiny app with DesktopDeployR
 
-A containerized app can be used to generate reports using the [DesktopDeployR](https://github.com/wleepang/DesktopDeployR) framework. This method is the easiest because it doesn't require a full installation of R/R Studio and runs discretely without you having to explicitly open other software. To use the app on a local server, Download the `MyApplication` folder and install [R-portable](https://sourceforge.net/projects/rportable/) and [pandoc](https://github.com/jgm/pandoc/releases) into `MyApplication/dist`. You can contact me for an installer of a complete `MyApplication` folder. Open the `.bat` file and the app will open in a browser window.
+A containerized app can be used to generate reports using the [DesktopDeployR](https://github.com/wleepang/DesktopDeployR) framework. This method is the easiest because it doesn't require a full installation of R/R Studio and runs discretely without you having to explicitly open other software. To use the app on a local server, download the `MyApplication` folder and install [R-portable](https://sourceforge.net/projects/rportable/) and [pandoc](https://github.com/jgm/pandoc/releases) into `MyApplication/dist`. You can contact me for an installer of a complete `MyApplication` folder. Open the `.bat` file and the app will open in a browser window.
 
 ![The app UI](app_screenshot.png)
 

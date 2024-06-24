@@ -5,3 +5,12 @@ body {
   font-size:10pt;
   text-align: center;
 }
+li {
+  margin: 0;
+	padding: 20px 0 20px 60px;
+	list-style: none;
+	background-image: url('tndot.png');
+	background-repeat: no-repeat;
+	background-position: left center;
+	background-size: 30px;
+}

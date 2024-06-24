@@ -116,6 +116,7 @@ ui <- fluidPage(
                 </ul>")
         )
       ),
+      hr(),
       br(),
       #reactable::reactableOutput('table2'),
       textOutput('text')

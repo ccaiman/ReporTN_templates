@@ -48,7 +48,7 @@ A containerized app can be used to generate reports using the
 This method is the easiest because it doesn’t require a full
 installation of R/R Studio and runs discretely without you having to
 explicitly open other software. To use the app on a local server,
-Download the `MyApplication` folder and install
+download the `MyApplication` folder and install
 [R-portable](https://sourceforge.net/projects/rportable/) and
 [pandoc](https://github.com/jgm/pandoc/releases) into
 `MyApplication/dist`. You can contact me for an installer of a complete
