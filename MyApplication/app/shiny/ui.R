@@ -22,7 +22,7 @@ ui <- fluidPage(
          developmental disabilities to live the lives they envision for themselves.</i>')
   ),
   
-  titlePanel("ReporTN templates"),
+  titlePanel(str_glue("ReporTN templates v{version}")),
   
   sidebarLayout(
     sidebarPanel(

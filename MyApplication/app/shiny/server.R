@@ -31,6 +31,7 @@ server <- function(input, output, session) {
                                     month = input$month_1)
       
       reactives$filename <- paste0(
+        input$year_1, " ",
         r_title_date |> filter(inp == input$month_1) |> pull(text), " ",
         r_title_rtype |> filter(inp == input$rtype) |> pull(text), " Report",
         r_title_date |> filter(inp == input$month_1) |> pull(date)
@@ -45,6 +46,7 @@ server <- function(input, output, session) {
                                     month = input$month_2)
       
       reactives$filename <- paste0(
+        input$year_2, " ",
         r_title_date |> filter(inp == input$month_2) |> pull(text), " ",
         r_title_rtype |> filter(inp == input$rtype) |> pull(text), " Report",
         r_title_date |> filter(inp == input$month_2) |> pull(date)
@@ -57,6 +59,7 @@ server <- function(input, output, session) {
                                     month = input$month_3)
       
       reactives$filename <- paste0(
+        input$year_3, " ",
         r_title_date |> filter(inp == input$month_3) |> pull(text), " ",
         r_title_rtype |> filter(inp == input$rtype) |> pull(text), " Report",
         r_title_date |> filter(inp == input$month_3) |> pull(date)
@@ -71,6 +74,7 @@ server <- function(input, output, session) {
                                     year = input$year_4)
       
       reactives$filename <- paste0(
+        input$year_4,
         " ",
         r_title_rtype |> filter(inp == input$rtype) |> pull(text), 
         " Report - Annual"
@@ -82,6 +86,7 @@ server <- function(input, output, session) {
                                     year = input$year_5)
       
       reactives$filename <- paste0(
+        input$year_5,
         " ",
         r_title_rtype |> filter(inp == input$rtype) |> pull(text), 
         " Report - Annual"
@@ -115,11 +120,8 @@ server <- function(input, output, session) {
   })
   
   output$download <- downloadHandler(
-    # filename = "Reprod_ex.docx",
     filename = function() {
       paste0(
-        Sys.Date() |> str_sub(1, 4), 
-        " ",
         reactives$filename,
         ".docx"
       ) 
