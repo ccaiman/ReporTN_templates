@@ -1,9 +1,14 @@
 body {
   font-size:13pt;
 }
+img {
+  float: left;
+}
 .quote {
-  font-size:10pt;
+  padding-top: 20px;
+  font-size: 10pt;
   text-align: center;
+  display: inline-block;
 }
 li {
   margin: 0;

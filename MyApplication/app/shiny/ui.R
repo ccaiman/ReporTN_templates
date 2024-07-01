@@ -10,17 +10,18 @@ ui <- fluidPage(
     tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")
   ),
   br(),
-  img(src = "tn_dda_logo.png", height = "75px"),
   div(
-    class = 'quote',
-    HTML('<strong>Mission: </strong><i>To become the nation’s most person-centered and cost-effective\
-         state support system for people with intellectual and developmental disabilities.</i>')
+    img(src = "tn_dda_logo.png", height = "75px"),
+    span(
+      class = 'quote',
+      HTML('<strong>Mission: </strong><i>To become the nation’s most person-centered and cost-effective\
+         state support system for people with intellectual and developmental disabilities.</i>'),
+      br(),
+      HTML('<strong>Vision: </strong><i>Support all Tennesseans with intellectual and\
+           developmental disabilities to live the lives they envision for themselves.</i>')
+      ),
   ),
-  div(
-    class = 'quote',
-    HTML('<strong>Vision: </strong><i>Support all Tennesseans with intellectual and\
-         developmental disabilities to live the lives they envision for themselves.</i>')
-  ),
+  br(),
   
   titlePanel(str_glue("ReporTN templates v{version}")),
   
